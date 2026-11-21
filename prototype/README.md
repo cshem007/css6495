@@ -19,3 +19,10 @@ An assembly workspace: a printable desk arm with 4 joints and a gripper (3 × MG
 Every size is a parameter. Move the joints with sliders or play the pick-and-place demo, see the
 reach, check each servo's worst-case load against its rating, and download an STL per part.
 On the Quest browser, **View at real size** puts it on a desk in front of you. Test: `node arm.test.js`.
+
+## Design from scratch (`sketch/`)
+
+Start from an empty grid: **R** for a rectangle, **C** for a circle, drag on the grid or on any face,
+then extrude by dragging or typing a distance (into the part makes a cut). With **Select**, drag any
+face to push or pull it. Sketches stay attached to the face they were drawn on, so they follow when
+that face moves. Every number can be a formula of parameters. Test: `node model.test.js`.
