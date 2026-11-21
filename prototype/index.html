@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>CSS Design</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a CAD workspace. Toolbar on top, browser (parameters + features) left, 3D view centre, properties right, timeline at the bottom. */
+:root {
+  --bg: #eef1f5; --panel: #ffffff; --ink: #172030; --muted: #5d6879; --line: #d5dbe4; --soft: #e6eaf0;
+  --accent: #1f6feb; --accent-soft: #dde9fd; --cut: #c2410c; --cut-soft: #fde7da; --ok: #1d7a4c; --err: #b42318; --err-soft: #fde4e1;
+  --view: #f7f8fa; --wood: #c9a16b; --edge: #3b4556; --gridc: #c5ccd6;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10151c; --panel: #171e28; --ink: #e4e8ee; --muted: #97a1b0; --line: #2a3443; --soft: #1f2734;
+  --accent: #6aa4ff; --accent-soft: #1b2b45; --cut: #ff9257; --cut-soft: #3b2214; --ok: #5cc690; --err: #ff8a7d; --err-soft: #3d1c1a;
+  --view: #1a212c; --wood: #b88d57; --edge: #0d1117; --gridc: #313b4a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #10151c; --panel: #171e28; --ink: #e4e8ee; --muted: #97a1b0; --line: #2a3443; --soft: #1f2734;
+  --accent: #6aa4ff; --accent-soft: #1b2b45; --cut: #ff9257; --cut-soft: #3b2214; --ok: #5cc690; --err: #ff8a7d; --err-soft: #3d1c1a;
+  --view: #1a212c; --wood: #b88d57; --edge: #0d1117; --gridc: #313b4a; color-scheme: dark }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 13.5px; line-height: 1.45; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.label { font-family: var(--f-mono); font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr auto; padding-left: max(0px, env(safe-area-inset-left, 0px)); padding-right: max(0px, env(safe-area-inset-right, 0px)); }
+.top { display: flex; align-items: center; gap: 10px; padding: 8px max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.brand { font-weight: 600; letter-spacing: .02em; }
+.brand b { color: var(--accent); }
+#docname { border: 1px solid transparent; background: transparent; padding: 4px 6px; border-radius: 5px; width: 13rem; max-width: 40vw; font-weight: 500; }
+#docname:hover, #docname:focus { border-color: var(--line); background: var(--bg); }
+.tools { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+.tb { border: 1px solid var(--line); background: var(--panel); padding: 5px 10px; border-radius: 6px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+.tb:hover { border-color: var(--accent); }
+.tb:disabled { opacity: .45; cursor: default; }
+.tb.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.tb .ic { font-family: var(--f-mono); font-weight: 600; }
+.spacer { flex: 1; }
+
+.work { display: grid; grid-template-columns: 260px minmax(0, 1fr) 290px; min-height: 0; }
+@media (max-width: 980px) { .work { grid-template-columns: 1fr; grid-auto-rows: auto; overflow: auto; } .view { min-height: 58vh; } }
+.side { background: var(--panel); border-right: 1px solid var(--line); overflow: auto; padding: 12px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.side.right { border-right: none; border-left: 1px solid var(--line); }
+@media (max-width: 980px) { .side { border: none; border-bottom: 1px solid var(--line); } .side.right { border-left: none; } }
+.sec { display: grid; gap: 6px; }
+.sechead { display: flex; justify-content: space-between; align-items: center; }
+.mini { border: 1px solid var(--line); background: var(--panel); border-radius: 5px; padding: 1px 8px; cursor: pointer; font-size: .78rem; }
+.mini:hover { border-color: var(--accent); }
+
+.params { display: grid; gap: 4px; }
+.prow { display: grid; grid-template-columns: minmax(0, 5.5rem) minmax(0, 1fr) 3.8rem 1.4rem; gap: 4px; align-items: center; }
+.prow input { width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 4px; padding: 3px 6px; }
+.prow input.bad, .field input.bad { border-color: var(--err); background: var(--err-soft); }
+.prow .val { text-align: right; font-size: .78rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.x { border: none; background: none; color: var(--muted); cursor: pointer; padding: 0; font-size: 1rem; line-height: 1; }
+.x:hover { color: var(--err); }
+
+.tree { display: grid; gap: 2px; }
+.titem { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 5px 6px; border-radius: 5px; cursor: pointer; border: 1px solid transparent; text-align: left; background: none; width: 100%; }
+.titem:hover { background: var(--soft); }
+.titem.sel { background: var(--accent-soft); border-color: var(--accent); }
+.titem.skip { opacity: .5; }
+.titem .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.glyph { font-family: var(--f-mono); font-weight: 600; text-align: center; border-radius: 4px; font-size: .8rem; line-height: 1.4rem; height: 1.4rem; background: var(--soft); }
+.glyph.cut { background: var(--cut-soft); color: var(--cut); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--err); }
+
+.view { position: relative; background: var(--view); min-width: 0; min-height: 0; overflow: hidden; }
+#canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.vbar { position: absolute; top: 10px; right: 10px; display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.vbar .tb { padding: 3px 8px; font-size: .8rem; background: var(--panel); }
+.readout { position: absolute; left: 10px; bottom: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; display: grid; gap: 1px; font-size: .78rem; max-width: calc(100% - 20px); }
+.readout b { font-family: var(--f-mono); font-weight: 500; }
+.toast { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); background: var(--ink); color: var(--panel); padding: 6px 12px; border-radius: 6px; font-size: .82rem; max-width: 80%; text-align: center; }
+
+.props { display: grid; gap: 10px; }
+.field { display: grid; grid-template-columns: 5.6rem minmax(0, 1fr); gap: 6px; align-items: center; }
+.field input, .field select { width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 4px; padding: 4px 7px; }
+.field .hint { grid-column: 2; font-size: .74rem; color: var(--muted); margin-top: -4px; min-height: 1em; }
+.field .hint.err { color: var(--err); }
+.group { border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 8px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { border: none; background: var(--panel); padding: 4px 12px; cursor: pointer; border-left: 1px solid var(--line); }
+.seg button:first-child { border-left: none; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.seg button.cut[aria-pressed="true"] { background: var(--cut); }
+.empty { color: var(--muted); font-size: .86rem; }
+.help { font-size: .8rem; color: var(--muted); display: grid; gap: 4px; }
+.help code { font-family: var(--f-mono); background: var(--soft); padding: 0 4px; border-radius: 3px; }
+
+.timeline { background: var(--panel); border-top: 1px solid var(--line); padding: 8px max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; gap: 6px; align-items: center; overflow-x: auto; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 3px 8px 3px 4px; cursor: pointer; white-space: nowrap; font-size: .8rem; }
+.chip.sel { border-color: var(--accent); background: var(--accent-soft); }
+.chip.skip { opacity: .45; text-decoration: line-through; }
+.chip .glyph { width: 1.3rem; height: 1.3rem; line-height: 1.3rem; }
+.arrow { color: var(--muted); }
+#copybox { position: absolute; inset: auto 10px 10px auto; width: min(420px, calc(100% - 20px)); height: 140px; font-family: var(--f-mono); font-size: .75rem; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+</style>
+
+<div class="app">
+  <header class="top">
+    <span class="brand"><b>CSS</b> Design</span>
+    <label class="label" for="docname" style="position:absolute;left:-9999px">Design name</label><input id="docname" type="text" maxlength="60" aria-label="Design name">
+    <div class="tools">
+      <button class="tb" id="add-box" type="button" title="Add a box"><span class="ic">□</span>Box</button>
+      <button class="tb" id="add-cyl" type="button" title="Add a cylinder"><span class="ic">○</span>Cylinder</button>
+      <button class="tb" id="add-hole" type="button" title="Cut a round hole"><span class="ic" style="color:var(--cut)">⊖</span>Hole</button>
+      <span class="sep"></span>
+      <button class="tb" id="undo" type="button" title="Undo">↶ Undo</button>
+      <button class="tb" id="redo" type="button" title="Redo">↷ Redo</button>
+      <span class="sep"></span>
+      <button class="tb" id="open" type="button" title="Open a design or a StarkWorkshop parts.json">Open file</button>
+      <input id="file" type="file" accept=".json,application/json" hidden>
+      <button class="tb" id="copy" type="button">Copy design</button>
+      <button class="tb" id="sample" type="button">Reset to sample</button>
+    </div>
+    <span class="spacer"></span>
+    <button class="tb primary" id="xr" type="button">View at real size</button>
+  </header>
+
+  <div class="work">
+    <aside class="side" aria-label="Browser">
+      <div class="sec">
+        <div class="sechead"><span class="label">Parameters</span><button class="mini" id="add-param" type="button">+ Add</button></div>
+        <div class="params" id="params"></div>
+      </div>
+      <div class="sec">
+        <span class="label">Features (built top to bottom)</span>
+        <div class="tree" id="tree"></div>
+      </div>
+      <div class="help">
+        <span class="label">How it works</span>
+        <span>Any size can be a number or a formula of parameters, like <code>width - 2*thick</code>.</span>
+        <span>Change a parameter and every feature that uses it updates.</span>
+        <span>Positions are the box's lower-left-back corner, in mm. Z is up.</span>
+      </div>
+    </aside>
+
+    <main class="view" id="view">
+      <canvas id="canvas" aria-label="3D view of the design"></canvas>
+      <div class="vbar">
+        <button class="tb" data-view="iso" type="button">Iso</button>
+        <button class="tb" data-view="front" type="button">Front</button>
+        <button class="tb" data-view="top" type="button">Top</button>
+        <button class="tb" data-view="right" type="button">Right</button>
+        <button class="tb" data-view="fit" type="button">Fit</button>
+      </div>
+      <div class="readout" id="readout"></div>
+      <div class="toast" id="toast" hidden></div>
+      <textarea id="copybox" hidden readonly aria-label="Design as text"></textarea>
+    </main>
+
+    <aside class="side right" aria-label="Properties">
+      <span class="label">Properties</span>
+      <div class="props" id="props"></div>
+    </aside>
+  </div>
+
+  <footer class="timeline" id="timeline" aria-label="Timeline"></footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js" integrity="sha384-wagZhIFgY4hD+7awjQjR4e2E294y6J2HSnd8eTNc15ZubTeQeVRZwhQJ+W6hnBsf" crossorigin="anonymous"></script>
+<script>
+// CSS Design core: CSG (port of csg.js by Evan Wallace, MIT), a safe expression parser, and the
+// parametric model evaluator. No DOM, no three.js: runs in the page and under node for tests.
+(function (root) {
+  // ---------------------------------------------------------------- CSG
+  const EPS = 1e-5;
+  const V = (x, y, z) => ({ x, y, z });
+  const add = (a, b) => V(a.x + b.x, a.y + b.y, a.z + b.z), sub = (a, b) => V(a.x - b.x, a.y - b.y, a.z - b.z);
+  const mul = (a, s) => V(a.x * s, a.y * s, a.z * s), dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+  const cross = (a, b) => V(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+  const len = a => Math.sqrt(dot(a, a)), unit = a => { const l = len(a); return l > 0 ? mul(a, 1 / l) : a; };
+  const lerp = (a, b, t) => add(a, mul(sub(b, a), t));
+
+  function plane(a, b, c) { const n = cross(sub(b, a), sub(c, a)); const l = len(n); if (l < 1e-12) return null; const u = mul(n, 1 / l); return { n: u, w: dot(u, a) }; }
+  const clonePlane = p => ({ n: V(p.n.x, p.n.y, p.n.z), w: p.w });
+  const flipPlane = p => { p.n = mul(p.n, -1); p.w = -p.w; };
+  function poly(verts, p) { p = p || plane(verts[0], verts[1], verts[2]); return p ? { v: verts, p } : null; }
+  const clonePoly = q => ({ v: q.v.slice(), p: clonePlane(q.p) });
+  const flipPoly = q => { q.v.reverse(); flipPlane(q.p); };
+
+  function split(pl, q, cf, cb, f, b) {
+    let type = 0; const types = [];
+    for (const v of q.v) { const t = dot(pl.n, v) - pl.w; const ty = t < -EPS ? 2 : t > EPS ? 1 : 0; type |= ty; types.push(ty); }
+    if (type === 0) (dot(pl.n, q.p.n) > 0 ? cf : cb).push(q);
+    else if (type === 1) f.push(q);
+    else if (type === 2) b.push(q);
+    else {
+      const fv = [], bv = [];
+      for (let i = 0; i < q.v.length; i++) {
+        const j = (i + 1) % q.v.length, ti = types[i], tj = types[j], vi = q.v[i], vj = q.v[j];
+        if (ti !== 2) fv.push(vi);
+        if (ti !== 1) bv.push(vi);
+        if ((ti | tj) === 3) { const t = (pl.w - dot(pl.n, vi)) / dot(pl.n, sub(vj, vi)); const v = lerp(vi, vj, t); fv.push(v); bv.push(v); }
+      }
+      // Each half gets its own plane: flipping one must never flip the other.
+      if (fv.length >= 3) f.push({ v: fv, p: clonePlane(q.p) });
+      if (bv.length >= 3) b.push({ v: bv, p: clonePlane(q.p) });
+    }
+  }
+
+  class Node {
+    constructor(polys) { this.pl = null; this.f = null; this.b = null; this.polys = []; if (polys) this.build(polys); }
+    invert() { this.polys.forEach(flipPoly); if (this.pl) flipPlane(this.pl); if (this.f) this.f.invert(); if (this.b) this.b.invert(); const t = this.f; this.f = this.b; this.b = t; }
+    clip(list) { if (!this.pl) return list.slice(); let f = [], b = []; for (const q of list) split(this.pl, q, f, b, f, b); if (this.f) f = this.f.clip(f); b = this.b ? this.b.clip(b) : []; return f.concat(b); }
+    clipTo(n) { this.polys = n.clip(this.polys); if (this.f) this.f.clipTo(n); if (this.b) this.b.clipTo(n); }
+    all() { let a = this.polys.slice(); if (this.f) a = a.concat(this.f.all()); if (this.b) a = a.concat(this.b.all()); return a; }
+    build(list) {
+      if (!list.length) return;
+      if (!this.pl) this.pl = clonePlane(list[0].p);
+      const f = [], b = [];
+      for (const q of list) split(this.pl, q, this.polys, this.polys, f, b);
+      if (f.length) { if (!this.f) this.f = new Node(); this.f.build(f); }
+      if (b.length) { if (!this.b) this.b = new Node(); this.b.build(b); }
+    }
+  }
+  const cl = polys => polys.map(clonePoly);
+  function union(A, B) { const a = new Node(cl(A)), b = new Node(cl(B)); a.clipTo(b); b.clipTo(a); b.invert(); b.clipTo(a); b.invert(); a.build(b.all()); return a.all(); }
+  function subtract(A, B) { const a = new Node(cl(A)), b = new Node(cl(B)); a.invert(); a.clipTo(b); b.clipTo(a); b.invert(); b.clipTo(a); b.invert(); a.build(b.all()); a.invert(); return a.all(); }
+
+  // Box from its MIN corner (x, y, z) and size (w along X, d along Y, h along Z). Z is up.
+  function box(x, y, z, w, d, h) {
+    const faces = [[[0, 4, 6, 2], -1], [[1, 3, 7, 5], 1], [[0, 1, 5, 4], -1], [[2, 6, 7, 3], 1], [[0, 2, 3, 1], -1], [[4, 5, 7, 6], 1]];
+    const out = [];
+    for (const [idx] of faces) {
+      const vs = idx.map(i => V(x + w * (i & 1), y + d * ((i >> 1) & 1), z + h * ((i >> 2) & 1)));
+      const p = poly(vs); if (p) out.push(p);
+    }
+    return out;
+  }
+  // Cylinder between two points with radius r.
+  function cylinder(s, e, r, slices) {
+    slices = slices || 40;
+    const ray = sub(e, s), az = unit(ray), isY = Math.abs(az.y) > .5;
+    const ax = unit(cross(V(isY ? 1 : 0, isY ? 0 : 1, 0), az)), ay = unit(cross(ax, az));
+    const pt = (stack, t) => { const a = t * Math.PI * 2; const out = add(mul(ax, Math.cos(a)), mul(ay, Math.sin(a))); return add(add(s, mul(ray, stack)), mul(out, r)); };
+    const res = [];
+    for (let i = 0; i < slices; i++) {
+      const t0 = i / slices, t1 = (i + 1) / slices;
+      [poly([s, pt(0, t0), pt(0, t1)]), poly([pt(0, t1), pt(0, t0), pt(1, t0), pt(1, t1)]), poly([e, pt(1, t1), pt(1, t0)])].forEach(p => p && res.push(p));
+    }
+    return res;
+  }
+  // Watertight triangles: weld equal points, insert T-junction points into neighbouring edges, and
+  // fan from each polygon's centroid. Same method as StarkWorkshop's Csg.ToWatertightTriangles. Without
+  // it, edge lines show starbursts where a cut split one face but not its neighbour.
+  function watertight(polys, weld) {
+    weld = weld || 1e-4; const inv = 1 / weld, canon = new Map();
+    const key = v => Math.round(v.x * inv) + ',' + Math.round(v.y * inv) + ',' + Math.round(v.z * inv);
+    const C = v => { const k = key(v); let c = canon.get(k); if (!c) { c = v; canon.set(k, v); } return c; };
+    const P = [];
+    for (const q of polys) {
+      const vs = [];
+      for (const v of q.v) { const c = C(v); if (!vs.length || vs[vs.length - 1] !== c) vs.push(c); }
+      if (vs.length > 1 && vs[0] === vs[vs.length - 1]) vs.pop();
+      if (vs.length >= 3) P.push(vs);
+    }
+    const cell = 2, grid = new Map(), ck = (x, y, z) => x + '|' + y + '|' + z, cf = a => Math.floor(a / cell);
+    for (const v of canon.values()) { const k = ck(cf(v.x), cf(v.y), cf(v.z)); let l = grid.get(k); if (!l) grid.set(k, l = []); l.push(v); }
+    const onSeg = (a, b) => {
+      const ab = sub(b, a), l2 = dot(ab, ab), out = []; if (l2 < weld * weld) return out;
+      const x0 = cf(Math.min(a.x, b.x)) - 1, x1 = cf(Math.max(a.x, b.x)) + 1, y0 = cf(Math.min(a.y, b.y)) - 1, y1 = cf(Math.max(a.y, b.y)) + 1, z0 = cf(Math.min(a.z, b.z)) - 1, z1 = cf(Math.max(a.z, b.z)) + 1;
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) {
+        const l = grid.get(ck(x, y, z)); if (!l) continue;
+        for (const p of l) { if (p === a || p === b) continue; const t = dot(sub(p, a), ab) / l2; if (t <= 1e-9 || t >= 1 - 1e-9) continue; if (len(sub(p, add(a, mul(ab, t)))) <= weld) out.push([t, p]); }
+      }
+      return out.sort((m, n) => m[0] - n[0]).map(m => m[1]);
+    };
+    const tris = [];
+    for (const vs of P) {
+      const o = []; let ins = false;
+      for (let i = 0; i < vs.length; i++) { o.push(vs[i]); const extra = onSeg(vs[i], vs[(i + 1) % vs.length]); if (extra.length) { ins = true; o.push(...extra); } }
+      if (!ins) { for (let i = 2; i < o.length; i++) tris.push([o[0], o[i - 1], o[i]]); continue; }
+      let c = V(0, 0, 0); for (const v of o) c = add(c, v); c = mul(c, 1 / o.length);
+      for (let i = 0; i < o.length; i++) tris.push([c, o[i], o[(i + 1) % o.length]]);
+    }
+    return tris;
+  }
+  function triangles(polys) { const t = []; for (const q of polys) for (let i = 2; i < q.v.length; i++) t.push([q.v[0], q.v[i - 1], q.v[i]]); return t; }
+  const volume = tris => tris.reduce((s, t) => s + dot(t[0], cross(t[1], t[2])) / 6, 0);
+  function bounds(polys) {
+    if (!polys.length) return null;
+    const mn = V(Infinity, Infinity, Infinity), mx = V(-Infinity, -Infinity, -Infinity);
+    for (const q of polys) for (const v of q.v) { mn.x = Math.min(mn.x, v.x); mn.y = Math.min(mn.y, v.y); mn.z = Math.min(mn.z, v.z); mx.x = Math.max(mx.x, v.x); mx.y = Math.max(mx.y, v.y); mx.z = Math.max(mx.z, v.z); }
+    return { min: mn, max: mx };
+  }
+
+  // ---------------------------------------------------------------- expressions
+  // Numbers, parameter names, + - * / ( ) and unary minus. No eval: a typed formula can only compute.
+  function evalExpr(src, vars) {
+    const s = String(src == null ? '' : src).replace(/mm\b/g, ''); let i = 0;
+    const ws = () => { while (i < s.length && /\s/.test(s[i])) i++; };
+    const fail = m => { throw new Error(m); };
+    function primary() {
+      ws();
+      if (s[i] === '(') { i++; const v = expr(); ws(); if (s[i] !== ')') fail('missing )'); i++; return v; }
+      if (s[i] === '-') { i++; return -primary(); }
+      if (s[i] === '+') { i++; return primary(); }
+      let m = /^\d*\.?\d+(?:e[-+]?\d+)?/i.exec(s.slice(i));
+      if (m) { i += m[0].length; return parseFloat(m[0]); }
+      m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i));
+      if (m) { i += m[0].length; if (!(m[0] in vars)) fail('unknown name "' + m[0] + '"'); return vars[m[0]]; }
+      fail(i >= s.length ? 'empty' : 'unexpected "' + s[i] + '"');
+    }
+    function term() { let v = primary(); for (;;) { ws(); if (s[i] === '*') { i++; v *= primary(); } else if (s[i] === '/') { i++; const d = primary(); if (d === 0) fail('divide by 0'); v /= d; } else return v; } }
+    function expr() { let v = term(); for (;;) { ws(); if (s[i] === '+') { i++; v += term(); } else if (s[i] === '-') { i++; v -= term(); } else return v; } }
+    const v = expr(); ws(); if (i < s.length) fail('unexpected "' + s[i] + '"');
+    if (!isFinite(v)) fail('not a number');
+    return v;
+  }
+
+  // ---------------------------------------------------------------- the parametric model
+  // model = { name, params: [{name, expr}], features: [{id, name, type: 'box'|'cylinder', op: 'add'|'cut',
+  //   skip, x, y, z, w, d, h (box) | r, len, axis 'x'|'y'|'z' (cylinder), count, sx, sy, sz }] }  all numbers are expressions
+  function solveParams(params) {
+    const vars = {}, values = {}, errors = {};
+    for (const p of params) {
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(p.name || '')) { errors[p.name] = 'name: letters, digits, _'; continue; }
+      try { vars[p.name] = values[p.name] = evalExpr(p.expr, vars); } catch (e) { errors[p.name] = e.message; }
+    }
+    return { vars, values, errors };
+  }
+
+  function featureSolid(f, vars) {
+    const n = k => evalExpr(f[k], vars);
+    const count = Math.max(1, Math.min(200, Math.round(f.count == null || f.count === '' ? 1 : n('count'))));
+    const sx = f.sx ? n('sx') : 0, sy = f.sy ? n('sy') : 0, sz = f.sz ? n('sz') : 0;
+    let polys = [];
+    for (let k = 0; k < count; k++) {
+      const ox = n('x') + sx * k, oy = n('y') + sy * k, oz = n('z') + sz * k;
+      let one;
+      if (f.type === 'box') {
+        const w = n('w'), d = n('d'), h = n('h');
+        if (w <= 0 || d <= 0 || h <= 0) throw new Error('sizes must be above 0');
+        one = box(ox, oy, oz, w, d, h);
+      } else {
+        const r = n('r'), L = n('len');
+        if (r <= 0 || L <= 0) throw new Error('radius and length must be above 0');
+        const dir = f.axis === 'x' ? V(1, 0, 0) : f.axis === 'y' ? V(0, 1, 0) : V(0, 0, 1);
+        const s = V(ox, oy, oz); one = cylinder(s, add(s, mul(dir, L)), r);
+      }
+      polys = k === 0 ? one : union(polys, one);
+    }
+    return polys;
+  }
+
+  // Replays the timeline. Returns the solid, per-feature errors, and each feature's own solid.
+  function build(model) {
+    const { vars, values, errors: paramErrors } = solveParams(model.params || []);
+    let solid = [];
+    const errors = {}, own = {};
+    for (const f of model.features || []) {
+      if (f.skip) continue;
+      try {
+        const fs = featureSolid(f, vars); own[f.id] = fs;
+        solid = f.op === 'cut' ? (solid.length ? subtract(solid, fs) : solid) : (solid.length ? union(solid, fs) : fs);
+      } catch (e) { errors[f.id] = e.message; }
+    }
+    return { solid, errors, paramErrors, values, own };
+  }
+
+  // StarkWorkshop parts.json -> features. Only axis-aligned Cube and Cylinder parts map exactly;
+  // anything else is reported, not guessed.
+  function fromStarkParts(json) {
+    const parts = json.parts || [], features = [], skipped = [];
+    const r2 = v => Math.round(v * 100) / 100;
+    const axisOf = v => { const a = [Math.abs(v[0]), Math.abs(v[1]), Math.abs(v[2])], L = Math.hypot(...a); if (L === 0) return null; const k = a.indexOf(Math.max(...a)); return a[k] / L > .999 ? 'xyz'[k] : null; };
+    parts.forEach((p, i) => {
+      const L = v => Math.hypot(v[0], v[1], v[2]);
+      const ax = axisOf(p.ax), ay = axisOf(p.ay), az = axisOf(p.az);
+      const name = (p.name || p.type) + (p.hole ? ' (hole)' : '');
+      if (p.type === 'Cube' && ax && ay && az) {
+        const size = { [ax]: p.w * L(p.ax), [ay]: p.h * L(p.ay), [az]: p.d * L(p.az) };
+        features.push({ id: 'f' + (i + 1), name, type: 'box', op: p.hole ? 'cut' : 'add',
+          x: String(r2(p.origin[0] - size.x / 2)), y: String(r2(p.origin[1] - size.y / 2)), z: String(r2(p.origin[2] - size.z / 2)),
+          w: String(r2(size.x)), d: String(r2(size.y)), h: String(r2(size.z)), count: '1', sx: '', sy: '', sz: '' });
+      } else if ((p.type === 'Cylinder' || p.type === 'Tube') && ay) {
+        const Lh = p.h * L(p.ay), r = p.r1 * L(p.ax), sign = p.ay['xyz'.indexOf(ay)] < 0 ? -1 : 1;
+        const o = p.origin.slice(); o['xyz'.indexOf(ay)] -= Lh / 2;
+        features.push({ id: 'f' + (i + 1), name, type: 'cylinder', op: p.hole ? 'cut' : 'add', axis: ay,
+          x: String(r2(o[0])), y: String(r2(o[1])), z: String(r2(o[2])), r: String(r2(r)), len: String(r2(Lh)), count: '1', sx: '', sy: '', sz: '' });
+        if (sign < 0) {} // a flipped axis is the same cylinder: start point is still the low end
+      } else skipped.push((p.name || p.type) + ' (' + p.type + (ax && ay && az ? '' : ', rotated') + ')');
+    });
+    return { model: { name: 'From headset', params: [], features }, skipped };
+  }
+
+  const api = { box, cylinder, union, subtract, triangles, watertight, volume, bounds, evalExpr, solveParams, build, fromStarkParts };
+  if (typeof module !== 'undefined') module.exports = api; else root.CORE = api;
+})(this);
+
+</script>
+<script>
+(function () {
+  const C = window.CORE, $ = id => document.getElementById(id);
+  const STORE = 'css-design.model.v1';
+
+  const SAMPLE = {
+    name: 'Wall shelf',
+    params: [
+      { name: 'width', expr: '600' }, { name: 'depth', expr: '200' }, { name: 'height', expr: '700' },
+      { name: 'thick', expr: '18' }, { name: 'shelves', expr: '3' }, { name: 'screw', expr: '5' }
+    ],
+    features: [
+      { id: 'f1', name: 'Left side', type: 'box', op: 'add', x: '0', y: '0', z: '0', w: 'thick', d: 'depth', h: 'height', count: '1', sx: '', sy: '', sz: '' },
+      { id: 'f2', name: 'Right side', type: 'box', op: 'add', x: 'width - thick', y: '0', z: '0', w: 'thick', d: 'depth', h: 'height', count: '1', sx: '', sy: '', sz: '' },
+      { id: 'f3', name: 'Shelves', type: 'box', op: 'add', x: 'thick', y: '0', z: '0', w: 'width - 2*thick', d: 'depth', h: 'thick', count: 'shelves', sx: '', sy: '', sz: '(height - thick)/(shelves - 1)' },
+      { id: 'f4', name: 'Back rail', type: 'box', op: 'add', x: 'thick', y: 'depth - thick', z: 'height - 100', w: 'width - 2*thick', d: 'thick', h: '80', count: '1', sx: '', sy: '', sz: '' },
+      { id: 'f5', name: 'Wall screw holes', type: 'cylinder', op: 'cut', axis: 'y', x: 'thick + 60', y: 'depth - thick - 1', z: 'height - 60', r: 'screw / 2', len: 'thick + 2', count: '2', sx: 'width - 2*thick - 120', sy: '', sz: '' },
+      { id: 'f6', name: 'Cable hole', type: 'cylinder', op: 'cut', axis: 'z', x: 'width / 2', y: 'depth - 50', z: '-1', r: '15', len: 'thick + 2', count: '1', sx: '', sy: '', sz: '' }
+    ]
+  };
+
+  let model = load() || clone(SAMPLE);
+  let selected = model.features.length ? model.features[0].id : null;
+  let result = null;
+  const undoStack = [], redoStack = [];
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function load() { try { const s = localStorage.getItem(STORE); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+  function save() { try { localStorage.setItem(STORE, JSON.stringify(model)); } catch (e) {} }
+  function commit() { undoStack.push(JSON.stringify(model)); if (undoStack.length > 100) undoStack.shift(); redoStack.length = 0; updateUndo(); }
+  function updateUndo() { $('undo').disabled = !undoStack.length; $('redo').disabled = !redoStack.length; }
+  let lastCommitted = JSON.stringify(model);
+  // Every finished edit (field left, button pressed) becomes one undo step.
+  function checkpoint() { const now = JSON.stringify(model); if (now !== lastCommitted) { undoStack.push(lastCommitted); if (undoStack.length > 100) undoStack.shift(); redoStack.length = 0; lastCommitted = now; updateUndo(); } }
+  $('undo').addEventListener('click', () => { if (!undoStack.length) return; redoStack.push(JSON.stringify(model)); model = JSON.parse(undoStack.pop()); lastCommitted = JSON.stringify(model); fixSel(); rebuild(true); updateUndo(); });
+  $('redo').addEventListener('click', () => { if (!redoStack.length) return; undoStack.push(JSON.stringify(model)); model = JSON.parse(redoStack.pop()); lastCommitted = JSON.stringify(model); fixSel(); rebuild(true); updateUndo(); });
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); (e.shiftKey ? $('redo') : $('undo')).click(); }
+  });
+  function fixSel() { if (!model.features.find(f => f.id === selected)) selected = model.features.length ? model.features[0].id : null; }
+
+  // ---------------------------------------------------------------- three.js view
+  const view = $('view'), canvas = $('canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(40, 1, 1, 100000);
+  const controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f99, 0.85));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(1, 2, 1.5); scene.add(sun);
+  // CAD is Z-up; three.js is Y-up. The model lives in 'world', turned so the model's Z points up.
+  const world = new THREE.Group(); world.rotation.x = -Math.PI / 2; scene.add(world);
+  let grid = null, body = null, edges = null, ghost = null, ghostEdges = null;
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const matBody = new THREE.MeshStandardMaterial({ roughness: .75, metalness: 0, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+  const matEdge = new THREE.LineBasicMaterial();
+  const matGhost = new THREE.MeshBasicMaterial({ transparent: true, opacity: .22, depthWrite: false });
+  const matGhostEdge = new THREE.LineBasicMaterial({ transparent: true, opacity: .95 });
+  function applyTheme() {
+    matBody.color.set(css('--wood')); matEdge.color.set(css('--edge'));
+    if (grid) { world.remove(grid); grid.geometry.dispose(); }
+    grid = new THREE.GridHelper(4000, 40, css('--gridc'), css('--gridc')); grid.rotation.x = Math.PI / 2; world.add(grid);
+    paintGhost();
+  }
+  function paintGhost() { const f = model.features.find(x => x.id === selected); const c = f && f.op === 'cut' ? css('--cut') : css('--accent'); matGhost.color.set(c); matGhostEdge.color.set(c); }
+  const mq = window.matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', applyTheme);
+  new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  function geomFrom(polys) {
+    const tris = C.watertight(polys), pos = new Float32Array(tris.length * 9);
+    tris.forEach((t, i) => t.forEach((v, k) => { pos[i * 9 + k * 3] = v.x; pos[i * 9 + k * 3 + 1] = v.y; pos[i * 9 + k * 3 + 2] = v.z; }));
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.computeVertexNormals(); return g;
+  }
+  function dispose(o) { if (!o) return; world.remove(o); o.geometry.dispose(); }
+  function drawBody() {
+    dispose(body); dispose(edges); body = edges = null;
+    if (!result.solid.length) return;
+    const g = geomFrom(result.solid);
+    body = new THREE.Mesh(g, matBody); world.add(body);
+    edges = new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), matEdge); world.add(edges);
+  }
+  function drawGhost() {
+    dispose(ghost); dispose(ghostEdges); ghost = ghostEdges = null;
+    const own = result && selected ? result.own[selected] : null;
+    if (!own || !own.length) return;
+    paintGhost();
+    const g = geomFrom(own);
+    ghost = new THREE.Mesh(g, matGhost); ghost.renderOrder = 2; world.add(ghost);
+    ghostEdges = new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), matGhostEdge); ghostEdges.renderOrder = 3; world.add(ghostEdges);
+  }
+  function resize() {
+    const w = view.clientWidth, h = view.clientHeight; if (!w || !h) return;
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(view);
+
+  // Camera presets. Directions are in MODEL space (Z up), converted to three.js (Y up).
+  const toThree = (x, y, z) => new THREE.Vector3(x, z, -y);
+  function setView(kind) {
+    const b = result && C.bounds(result.solid);
+    const mn = b ? b.min : { x: 0, y: 0, z: 0 }, mx = b ? b.max : { x: 600, y: 200, z: 700 };
+    const c = toThree((mn.x + mx.x) / 2, (mn.y + mx.y) / 2, (mn.z + mx.z) / 2);
+    const size = Math.max(mx.x - mn.x, mx.y - mn.y, mx.z - mn.z, 50);
+    const dirs = { iso: [1, -1.3, .9], front: [0, -1, 0.0001], top: [0.0001, -0.0001, 1], right: [1, 0, 0.0001] };
+    const d = dirs[kind] || dirs.iso; const v = toThree(d[0], d[1], d[2]).normalize();
+    const dist = size * 1.9 / Math.tan((camera.fov * Math.PI / 180) / 2) / 2;
+    controls.target.copy(c); camera.position.copy(c).add(v.multiplyScalar(dist)); camera.near = Math.max(1, dist / 200); camera.far = dist * 50; camera.updateProjectionMatrix(); controls.update();
+  }
+  view.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view === 'fit' ? 'iso' : b.dataset.view)));
+
+  // ---------------------------------------------------------------- real size (WebXR)
+  // In the Quest browser: passthrough when available, the model at 1:1 on your floor, pinch to bring it in front of you.
+  let xrSession = null; const xrRoot = new THREE.Group();
+  async function xrMode() {
+    if (!navigator.xr) return null;
+    try { if (await navigator.xr.isSessionSupported('immersive-ar')) return 'immersive-ar'; } catch (e) {}
+    try { if (await navigator.xr.isSessionSupported('immersive-vr')) return 'immersive-vr'; } catch (e) {}
+    return null;
+  }
+  $('xr').addEventListener('click', async () => {
+    if (xrSession) { xrSession.end(); return; }
+    const mode = await xrMode();
+    if (!mode) { toast('Real size needs a headset. Open this design on your Quest and press this button there.'); return; }
+    try {
+      const s = await navigator.xr.requestSession(mode, { optionalFeatures: ['local-floor', 'hand-tracking'] });
+      renderer.xr.enabled = true; renderer.xr.setReferenceSpaceType('local-floor'); await renderer.xr.setSession(s);
+      xrSession = s; $('xr').textContent = 'Leave real size';
+      const b = C.bounds(result.solid) || { min: { x: 0, y: 0, z: 0 }, max: { x: 0, y: 0, z: 0 } };
+      // Millimetres to metres, centred left-right and front-back, standing on the floor.
+      scene.remove(world); xrRoot.add(world); scene.add(xrRoot);
+      world.scale.setScalar(.001); world.position.set(-(b.min.x + b.max.x) / 2 * .001, -b.min.z * .001, (b.min.y + b.max.y) / 2 * .001);
+      xrRoot.position.set(0, 0, -1.2); if (grid) grid.visible = mode !== 'immersive-ar';
+      if (mode === 'immersive-ar') scene.background = null;
+      for (let i = 0; i < 2; i++) { const c = renderer.xr.getController(i); c.addEventListener('select', placeInFront); scene.add(c); }
+      s.addEventListener('end', () => {
+        xrSession = null; renderer.xr.enabled = false; $('xr').textContent = 'View at real size';
+        xrRoot.remove(world); scene.remove(xrRoot); scene.add(world); world.scale.setScalar(1); world.position.set(0, 0, 0); if (grid) grid.visible = true; resize(); setView('iso');
+      });
+    } catch (e) { toast('Could not start real size: ' + e.message); }
+  });
+  function placeInFront() {
+    const cam = renderer.xr.getCamera(camera), p = new THREE.Vector3(), d = new THREE.Vector3();
+    cam.getWorldPosition(p); cam.getWorldDirection(d); d.y = 0; d.normalize();
+    xrRoot.position.set(p.x + d.x * 1.0, 0, p.z + d.z * 1.0); xrRoot.rotation.y = Math.atan2(-d.x, -d.z);
+  }
+  renderer.setAnimationLoop(() => { if (!xrSession) controls.update(); renderer.render(scene, camera); });
+
+  // ---------------------------------------------------------------- panels
+  const fmt = v => (Math.round(v * 100) / 100).toLocaleString('en-US');
+  function vars() { return C.solveParams(model.params).vars; }
+  function evalOrErr(expr, v) { try { return { v: C.evalExpr(expr, v) }; } catch (e) { return { e: e.message }; } }
+
+  function renderParams() {
+    const solved = C.solveParams(model.params);
+    $('params').innerHTML = '';
+    model.params.forEach((p, i) => {
+      const row = document.createElement('div'); row.className = 'prow';
+      const err = solved.errors[p.name];
+      row.innerHTML = '<input id="pn-' + i + '" aria-label="Parameter name" value="' + esc(p.name) + '"><input id="pe-' + i + '" aria-label="Value of ' + esc(p.name) + '" class="' + (err ? 'bad' : '') + '" value="' + esc(p.expr) + '"><span class="val mono" title="' + esc(err || '') + '">' + (err ? '!' : fmt(solved.values[p.name])) + '</span><button class="x" type="button" aria-label="Delete ' + esc(p.name) + '">×</button>';
+      const [n, e] = row.querySelectorAll('input');
+      n.addEventListener('change', () => { renameParam(p.name, n.value.trim()); rebuild(true); checkpoint(); });
+      e.addEventListener('input', () => { p.expr = e.value; rebuild(false); refreshParamValues(); });
+      e.addEventListener('change', checkpoint);
+      row.querySelector('.x').addEventListener('click', () => { model.params.splice(i, 1); rebuild(true); checkpoint(); });
+      $('params').appendChild(row);
+    });
+  }
+  function refreshParamValues() {
+    const solved = C.solveParams(model.params);
+    $('params').querySelectorAll('.prow').forEach((row, i) => {
+      const p = model.params[i]; if (!p) return; const err = solved.errors[p.name];
+      row.querySelectorAll('input')[1].classList.toggle('bad', !!err);
+      const val = row.querySelector('.val'); val.textContent = err ? '!' : fmt(solved.values[p.name]); val.title = err || '';
+    });
+  }
+  // Renaming a parameter rewrites every formula that uses it, like CAD does.
+  function renameParam(oldN, newN) {
+    if (!newN || newN === oldN) { renderParams(); return; }
+    const re = new RegExp('\\b' + oldN.replace(/[^A-Za-z0-9_]/g, '') + '\\b', 'g');
+    model.params.forEach(p => { if (p.name === oldN) p.name = newN; else p.expr = String(p.expr).replace(re, newN); });
+    model.features.forEach(f => ['x', 'y', 'z', 'w', 'd', 'h', 'r', 'len', 'count', 'sx', 'sy', 'sz'].forEach(k => { if (f[k] != null) f[k] = String(f[k]).replace(re, newN); }));
+  }
+  $('add-param').addEventListener('click', () => {
+    let k = 1; while (model.params.find(p => p.name === 'p' + k)) k++;
+    model.params.push({ name: 'p' + k, expr: '100' }); rebuild(true); checkpoint();
+    const i = model.params.length - 1; const el = $('pn-' + i); if (el) { el.focus(); el.select(); }
+  });
+
+  const glyph = f => '<span class="glyph' + (f.op === 'cut' ? ' cut' : '') + '">' + (f.type === 'box' ? '□' : '○') + '</span>';
+  function renderTree() {
+    $('tree').innerHTML = '';
+    model.features.forEach(f => {
+      const b = document.createElement('button'); b.type = 'button';
+      b.className = 'titem' + (f.id === selected ? ' sel' : '') + (f.skip ? ' skip' : '');
+      b.innerHTML = glyph(f) + '<span class="nm">' + esc(f.name || 'Feature') + '</span>' + (result.errors[f.id] ? '<span class="dot" title="' + esc(result.errors[f.id]) + '"></span>' : '<span></span>');
+      b.addEventListener('click', () => select(f.id));
+      $('tree').appendChild(b);
+    });
+    if (!model.features.length) $('tree').innerHTML = '<p class="empty">No features yet. Add a Box to start.</p>';
+  }
+  function renderTimeline() {
+    const t = $('timeline'); t.innerHTML = '<span class="label" style="margin-right:4px">Timeline</span>';
+    model.features.forEach((f, i) => {
+      if (i) t.insertAdjacentHTML('beforeend', '<span class="arrow">›</span>');
+      const c = document.createElement('button'); c.type = 'button';
+      c.className = 'chip' + (f.id === selected ? ' sel' : '') + (f.skip ? ' skip' : '');
+      c.innerHTML = glyph(f) + esc(f.name || 'Feature'); c.title = (f.skip ? 'Skipped. ' : '') + 'Double-click to skip or restore';
+      c.addEventListener('click', () => select(f.id));
+      c.addEventListener('dblclick', () => { f.skip = !f.skip; rebuild(true); checkpoint(); });
+      t.appendChild(c);
+    });
+  }
+
+  const FIELDS = {
+    box: [['x', 'X'], ['y', 'Y'], ['z', 'Z'], ['w', 'Width (X)'], ['d', 'Depth (Y)'], ['h', 'Height (Z)']],
+    cylinder: [['x', 'Start X'], ['y', 'Start Y'], ['z', 'Start Z'], ['r', 'Radius'], ['len', 'Length']]
+  };
+  function renderProps() {
+    const f = model.features.find(x => x.id === selected), P = $('props');
+    if (!f) { P.innerHTML = '<p class="empty">Select a feature in the list or the timeline to edit its sizes.</p>'; return; }
+    const v = vars();
+    let h = '<div class="field"><label for="pp-name">Name</label><input id="pp-name" value="' + esc(f.name || '') + '"></div>';
+    h += '<div class="field"><span>Operation</span><span class="seg" role="group" aria-label="Operation"><button type="button" data-op="add" aria-pressed="' + (f.op !== 'cut') + '">Add</button><button type="button" class="cut" data-op="cut" aria-pressed="' + (f.op === 'cut') + '">Cut</button></span></div>';
+    if (f.type === 'cylinder') h += '<div class="field"><label for="pp-axis">Direction</label><select id="pp-axis"><option value="x">Along X</option><option value="y">Along Y</option><option value="z">Along Z (up)</option></select></div>';
+    h += '<div class="group"><span class="label">Position and size · mm</span>';
+    FIELDS[f.type].forEach(([k, lab]) => { h += fieldHtml(f, k, lab, v); });
+    h += '</div><div class="group"><span class="label">Repeat (pattern)</span>' + fieldHtml(f, 'count', 'Copies', v) + fieldHtml(f, 'sx', 'Step X', v) + fieldHtml(f, 'sy', 'Step Y', v) + fieldHtml(f, 'sz', 'Step Z', v) + '</div>';
+    if (result.errors[f.id]) h += '<p class="hint err" style="margin:0">This feature is not built: ' + esc(result.errors[f.id]) + '</p>';
+    h += '<div class="group" style="display:flex;gap:6px;flex-wrap:wrap"><button class="tb" id="pp-up" type="button">Move earlier</button><button class="tb" id="pp-down" type="button">Move later</button><button class="tb" id="pp-skip" type="button">' + (f.skip ? 'Restore' : 'Skip') + '</button><button class="tb" id="pp-del" type="button" style="color:var(--err)">Delete</button></div>';
+    P.innerHTML = h;
+    $('pp-name').addEventListener('input', e => { f.name = e.target.value; renderTree(); renderTimeline(); });
+    $('pp-name').addEventListener('change', checkpoint);
+    P.querySelectorAll('[data-op]').forEach(b => b.addEventListener('click', () => { f.op = b.dataset.op; rebuild(true); checkpoint(); }));
+    if ($('pp-axis')) { $('pp-axis').value = f.axis || 'z'; $('pp-axis').addEventListener('change', e => { f.axis = e.target.value; rebuild(true); checkpoint(); }); }
+    P.querySelectorAll('input[data-k]').forEach(inp => {
+      inp.addEventListener('input', () => { f[inp.dataset.k] = inp.value; rebuild(false); refreshHints(f); });
+      inp.addEventListener('change', checkpoint);
+    });
+    const idx = model.features.indexOf(f);
+    $('pp-up').disabled = idx === 0; $('pp-down').disabled = idx === model.features.length - 1;
+    $('pp-up').addEventListener('click', () => { model.features.splice(idx, 1); model.features.splice(idx - 1, 0, f); rebuild(true); checkpoint(); });
+    $('pp-down').addEventListener('click', () => { model.features.splice(idx, 1); model.features.splice(idx + 1, 0, f); rebuild(true); checkpoint(); });
+    $('pp-skip').addEventListener('click', () => { f.skip = !f.skip; rebuild(true); checkpoint(); });
+    $('pp-del').addEventListener('click', () => { model.features.splice(idx, 1); fixSel(); rebuild(true); checkpoint(); });
+  }
+  function fieldHtml(f, k, lab, v) {
+    const val = f[k] == null ? '' : f[k], r = String(val).trim() === '' ? { v: k === 'count' ? 1 : 0 } : evalOrErr(val, v);
+    return '<div class="field"><label for="pp-' + k + '">' + lab + '</label><input id="pp-' + k + '" data-k="' + k + '" class="mono' + (r.e ? ' bad' : '') + '" value="' + esc(val) + '"' + (k === 'count' || k[0] === 's' ? ' placeholder="' + (k === 'count' ? '1' : '0') + '"' : '') + '><span class="hint' + (r.e ? ' err' : '') + '">' + (r.e ? esc(r.e) : (String(val).trim() && !/^-?\d*\.?\d+$/.test(String(val).trim()) ? '= ' + fmt(r.v) + (k === 'count' ? '' : ' mm') : '')) + '</span></div>';
+  }
+  function refreshHints(f) {
+    const v = vars();
+    $('props').querySelectorAll('input[data-k]').forEach(inp => {
+      const k = inp.dataset.k, val = f[k] == null ? '' : f[k];
+      const r = String(val).trim() === '' ? { v: 0 } : evalOrErr(val, v);
+      inp.classList.toggle('bad', !!r.e);
+      const hint = inp.nextElementSibling;
+      hint.className = 'hint' + (r.e ? ' err' : '');
+      hint.textContent = r.e ? r.e : (String(val).trim() && !/^-?\d*\.?\d+$/.test(String(val).trim()) ? '= ' + fmt(r.v) + (k === 'count' ? '' : ' mm') : '');
+    });
+  }
+
+  function renderReadout() {
+    const b = C.bounds(result.solid), errs = Object.keys(result.errors).length;
+    if (!b) { $('readout').innerHTML = '<span>Nothing to show yet.</span>'; return; }
+    const vol = C.volume(C.triangles(result.solid)) / 1000; // cm3
+    $('readout').innerHTML = '<span>Overall <b>' + fmt(b.max.x - b.min.x) + ' × ' + fmt(b.max.y - b.min.y) + ' × ' + fmt(b.max.z - b.min.z) + ' mm</b></span>' +
+      '<span>Volume <b>' + fmt(vol) + ' cm³</b> · in pine about <b>' + fmt(vol * .5 / 1000) + ' kg</b></span>' +
+      (errs ? '<span style="color:var(--err)">' + errs + ' feature' + (errs > 1 ? 's' : '') + ' not built, see the red dot</span>' : '');
+  }
+
+  // ---------------------------------------------------------------- rebuild
+  let pending = null, firstView = true;
+  function rebuild(full) {
+    result = C.build(model);
+    drawBody(); drawGhost(); renderReadout(); renderTree(); renderTimeline();
+    if (full) { renderParams(); renderProps(); $('docname').value = model.name || ''; }
+    if (firstView && result.solid.length) { firstView = false; resize(); setView('iso'); }
+    clearTimeout(pending); pending = setTimeout(save, 300);
+  }
+  function select(id) { selected = id; drawGhost(); renderTree(); renderTimeline(); renderProps(); }
+
+  // ---------------------------------------------------------------- toolbar
+  function newId() { let k = 1; while (model.features.find(f => f.id === 'f' + k)) k++; return 'f' + k; }
+  function addFeature(f) { model.features.push(f); selected = f.id; rebuild(true); checkpoint(); }
+  $('add-box').addEventListener('click', () => addFeature({ id: newId(), name: 'Box', type: 'box', op: 'add', x: '0', y: '0', z: '0', w: '100', d: '100', h: '100', count: '1', sx: '', sy: '', sz: '' }));
+  $('add-cyl').addEventListener('click', () => addFeature({ id: newId(), name: 'Cylinder', type: 'cylinder', op: 'add', axis: 'z', x: '50', y: '50', z: '0', r: '25', len: '100', count: '1', sx: '', sy: '', sz: '' }));
+  $('add-hole').addEventListener('click', () => addFeature({ id: newId(), name: 'Hole', type: 'cylinder', op: 'cut', axis: 'z', x: '50', y: '50', z: '-1', r: '2.5', len: '50', count: '1', sx: '', sy: '', sz: '' }));
+  $('docname').addEventListener('input', e => { model.name = e.target.value; clearTimeout(pending); pending = setTimeout(save, 300); });
+  $('docname').addEventListener('change', checkpoint);
+  $('sample').addEventListener('click', () => { model = clone(SAMPLE); selected = model.features[0].id; rebuild(true); checkpoint(); setView('iso'); toast('Sample shelf loaded. Undo brings your design back.'); });
+  $('open').addEventListener('click', () => $('file').click());
+  $('file').addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const j = JSON.parse(rd.result);
+        if (Array.isArray(j.features)) { model = j; toast('Opened ' + (j.name || file.name) + '.'); }
+        else if (Array.isArray(j.parts)) {
+          const r = C.fromStarkParts(j); model = r.model; model.name = 'From headset: ' + file.name;
+          toast('Opened from StarkWorkshop: ' + r.model.features.length + ' part(s) as features' + (r.skipped.length ? '. Skipped (not supported yet): ' + r.skipped.join(', ') : '.'));
+        } else throw new Error('not a design or a parts.json');
+        fixSel(); rebuild(true); checkpoint(); setView('iso');
+      } catch (err) { toast('Could not open ' + file.name + ': ' + err.message); }
+      e.target.value = '';
+    };
+    rd.readAsText(file);
+  });
+  $('copy').addEventListener('click', () => {
+    const text = JSON.stringify(model, null, 1), box = $('copybox');
+    const fallback = () => { box.hidden = false; box.value = text; box.focus(); box.select(); toast('Select all and copy the text in the box.'); };
+    try { navigator.clipboard.writeText(text).then(() => { box.hidden = true; toast('Design copied. Paste it into a .json file or our chat.'); }, fallback); } catch (err) { fallback(); }
+  });
+  let tt = null;
+  function toast(m) { const t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(tt); tt = setTimeout(() => { t.hidden = true; }, 5000); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+  applyTheme(); updateUndo(); fixSel(); rebuild(true); resize(); setView('iso');
+})();
+</script>
+
+</body>
+</html>
