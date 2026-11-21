@@ -12,3 +12,10 @@ A parametric CAD editor in the browser, plus a real-size view in VR.
 `node core.test.js`.
 
 Status: prototype. Tested in desktop Chromium. Not yet tried on a Quest.
+
+## Desk robot arm (`arm/`)
+
+An assembly workspace: a printable desk arm with 4 joints and a gripper (3 × MG996R, 2 × SG90).
+Every size is a parameter. Move the joints with sliders or play the pick-and-place demo, see the
+reach, check each servo's worst-case load against its rating, and download an STL per part.
+On the Quest browser, **View at real size** puts it on a desk in front of you. Test: `node arm.test.js`.

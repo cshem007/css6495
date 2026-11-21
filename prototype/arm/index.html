@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>CSS Design Robot Arm</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: the CSS Design workspace in Assembly mode. Assembly tree + parameters left, the arm centre, joints, checks and parts right. */
+:root {
+  --bg: #eef1f5; --panel: #ffffff; --ink: #172030; --muted: #5d6879; --line: #d5dbe4; --soft: #e6eaf0;
+  --accent: #1f6feb; --accent-soft: #dde9fd; --ok: #1d7a4c; --ok-soft: #dff2e8; --warn: #a35a00; --warn-soft: #fcefd9; --err: #b42318; --err-soft: #fde4e1;
+  --view: #f7f8fa; --part: #e98b3a; --servo: #2a2f38; --edge: #3b4556; --gridc: #c5ccd6; --reach: #1f6feb;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10151c; --panel: #171e28; --ink: #e4e8ee; --muted: #97a1b0; --line: #2a3443; --soft: #1f2734;
+  --accent: #6aa4ff; --accent-soft: #1b2b45; --ok: #5cc690; --ok-soft: #15301f; --warn: #f2a744; --warn-soft: #3a2a12; --err: #ff8a7d; --err-soft: #3d1c1a;
+  --view: #1a212c; --part: #e2843a; --servo: #0b0e13; --edge: #0d1117; --gridc: #313b4a; --reach: #6aa4ff; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #10151c; --panel: #171e28; --ink: #e4e8ee; --muted: #97a1b0; --line: #2a3443; --soft: #1f2734;
+  --accent: #6aa4ff; --accent-soft: #1b2b45; --ok: #5cc690; --ok-soft: #15301f; --warn: #f2a744; --warn-soft: #3a2a12; --err: #ff8a7d; --err-soft: #3d1c1a;
+  --view: #1a212c; --part: #e2843a; --servo: #0b0e13; --edge: #0d1117; --gridc: #313b4a; --reach: #6aa4ff; color-scheme: dark }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 13.5px; line-height: 1.45; }
+button, input, select { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.label { font-family: var(--f-mono); font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+.top { display: flex; align-items: center; gap: 10px; padding: 8px max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.brand { font-weight: 600; } .brand b { color: var(--accent); }
+.crumb { color: var(--muted); }
+.ws { font-family: var(--f-mono); font-size: .72rem; padding: 2px 8px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
+.spacer { flex: 1; }
+.tb { border: 1px solid var(--line); background: var(--panel); padding: 5px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.tb:hover { border-color: var(--accent); }
+.tb.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.tb[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+
+.work { display: grid; grid-template-columns: 270px minmax(0, 1fr) 310px; min-height: 0; }
+@media (max-width: 1020px) { .work { grid-template-columns: 1fr; overflow: auto; } .view { min-height: 60vh; } }
+.side { background: var(--panel); border-right: 1px solid var(--line); overflow: auto; padding: 12px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.side.right { border-right: none; border-left: 1px solid var(--line); }
+@media (max-width: 1020px) { .side, .side.right { border: none; border-bottom: 1px solid var(--line); } }
+.sec { display: grid; gap: 6px; }
+.sechead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mini { border: 1px solid var(--line); background: var(--panel); border-radius: 5px; padding: 1px 8px; cursor: pointer; font-size: .78rem; }
+
+.tree { display: grid; gap: 1px; }
+.titem { display: grid; grid-template-columns: auto 1fr auto; gap: 6px; align-items: center; padding: 4px 6px; border-radius: 5px; cursor: pointer; border: 1px solid transparent; background: none; text-align: left; width: 100%; }
+.titem:hover { background: var(--soft); }
+.titem.sel { background: var(--accent-soft); border-color: var(--accent); }
+.titem .ind { color: var(--muted); font-family: var(--f-mono); font-size: .8rem; }
+.titem .j { font-family: var(--f-mono); font-size: .7rem; color: var(--muted); }
+
+.pgroup { display: grid; gap: 3px; }
+.pgroup > .label { margin-top: 4px; }
+.prow { display: grid; grid-template-columns: minmax(0, 6.4rem) minmax(0, 1fr) 3.6rem; gap: 4px; align-items: center; }
+.prow .pn { font-family: var(--f-mono); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prow input { width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 4px; padding: 2px 6px; font-family: var(--f-mono); font-size: .8rem; }
+.prow input.bad { border-color: var(--err); background: var(--err-soft); }
+.prow .val { text-align: right; font-size: .74rem; color: var(--muted); }
+.note { font-size: .76rem; color: var(--muted); }
+
+.view { position: relative; background: var(--view); min-width: 0; min-height: 0; overflow: hidden; }
+#canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.vbar { position: absolute; top: 10px; right: 10px; display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; max-width: calc(100% - 20px); }
+.vbar .tb { padding: 3px 8px; font-size: .8rem; }
+.readout { position: absolute; left: 10px; bottom: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; display: grid; gap: 1px; font-size: .78rem; max-width: calc(100% - 20px); }
+.readout b { font-family: var(--f-mono); font-weight: 500; }
+.toast { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); background: var(--ink); color: var(--panel); padding: 6px 12px; border-radius: 6px; font-size: .82rem; max-width: 80%; text-align: center; }
+
+.joint { display: grid; grid-template-columns: 5.2rem minmax(0, 1fr) 3.4rem; gap: 8px; align-items: center; }
+.joint input { width: 100%; accent-color: var(--accent); }
+.joint .v { text-align: right; font-family: var(--f-mono); font-size: .8rem; }
+.poses { display: flex; gap: 4px; flex-wrap: wrap; }
+.poses .tb { padding: 3px 8px; font-size: .8rem; }
+
+.load { display: grid; gap: 3px; }
+.load .row { display: flex; justify-content: space-between; gap: 8px; font-size: .82rem; }
+.load .track { height: 10px; background: var(--soft); border-radius: 3px; position: relative; overflow: hidden; }
+.load .fill { position: absolute; inset: 0 auto 0 0; background: var(--ok); }
+.load .fill.warn { background: var(--warn); } .load .fill.bad { background: var(--err); }
+.load .rule { position: absolute; top: -2px; bottom: -2px; left: 50%; width: 1px; background: var(--ink); opacity: .5; }
+.pill { font-family: var(--f-mono); font-size: .68rem; padding: 1px 7px; border-radius: 999px; }
+.p-ok { background: var(--ok-soft); color: var(--ok); } .p-warn { background: var(--warn-soft); color: var(--warn); } .p-bad { background: var(--err-soft); color: var(--err); }
+
+table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+td, th { padding: 4px 4px; border-bottom: 1px solid var(--line); text-align: left; }
+th { font-family: var(--f-mono); font-size: .66rem; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+td.n { text-align: right; font-family: var(--f-mono); }
+.dl { border: 1px solid var(--line); background: var(--panel); border-radius: 4px; padding: 0 6px; font-size: .74rem; cursor: pointer; }
+</style>
+
+<div class="app">
+  <header class="top">
+    <span class="brand"><b>CSS</b> Design</span>
+    <span class="crumb">Desk robot arm</span>
+    <span class="ws">ASSEMBLY</span>
+    <span class="spacer"></span>
+    <button class="tb" id="play" type="button" aria-pressed="false">▶ Play demo</button>
+    <button class="tb primary" id="xr" type="button">View at real size</button>
+  </header>
+
+  <div class="work">
+    <aside class="side" aria-label="Assembly and parameters">
+      <div class="sec"><span class="label">Assembly</span><div class="tree" id="tree"></div></div>
+      <div class="sec">
+        <div class="sechead"><span class="label">Parameters · mm</span><button class="mini" id="reset" type="button">Reset</button></div>
+        <div id="params"></div>
+        <p class="note">Servo sizes are typical datasheet values. Measure your own servos and change them here before you print.</p>
+      </div>
+    </aside>
+
+    <main class="view" id="view">
+      <canvas id="canvas" aria-label="3D view of the robot arm"></canvas>
+      <div class="vbar">
+        <button class="tb" id="t-reach" type="button" aria-pressed="true">Reach</button>
+        <button class="tb" id="t-servo" type="button" aria-pressed="true">Servos</button>
+        <button class="tb" data-view="iso" type="button">Iso</button>
+        <button class="tb" data-view="front" type="button">Side</button>
+        <button class="tb" data-view="top" type="button">Top</button>
+      </div>
+      <div class="readout" id="readout"></div>
+      <div class="toast" id="toast" hidden></div>
+    </main>
+
+    <aside class="side right" aria-label="Joints, checks and parts">
+      <div class="sec">
+        <span class="label">Joints</span>
+        <div id="joints"></div>
+        <div class="poses" id="poses"></div>
+      </div>
+      <div class="sec">
+        <span class="label">Servo load, arm straight out (worst case)</span>
+        <div id="loads"></div>
+        <p class="note">Line at 50%: a common rule is to stay under half the stall torque. Ratings are datasheet values at 4.8 V.</p>
+      </div>
+      <div class="sec">
+        <span class="label">Parts to print</span>
+        <table><thead><tr><th>Part</th><th style="text-align:right">Qty</th><th style="text-align:right">PLA g</th><th></th></tr></thead><tbody id="bom"></tbody></table>
+        <p class="note" id="dlnote"></p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js" integrity="sha384-wagZhIFgY4hD+7awjQjR4e2E294y6J2HSnd8eTNc15ZubTeQeVRZwhQJ+W6hnBsf" crossorigin="anonymous"></script>
+<script>
+// CSS Design core: CSG (port of csg.js by Evan Wallace, MIT), a safe expression parser, and the
+// parametric model evaluator. No DOM, no three.js: runs in the page and under node for tests.
+(function (root) {
+  // ---------------------------------------------------------------- CSG
+  const EPS = 1e-5;
+  const V = (x, y, z) => ({ x, y, z });
+  const add = (a, b) => V(a.x + b.x, a.y + b.y, a.z + b.z), sub = (a, b) => V(a.x - b.x, a.y - b.y, a.z - b.z);
+  const mul = (a, s) => V(a.x * s, a.y * s, a.z * s), dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+  const cross = (a, b) => V(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+  const len = a => Math.sqrt(dot(a, a)), unit = a => { const l = len(a); return l > 0 ? mul(a, 1 / l) : a; };
+  const lerp = (a, b, t) => add(a, mul(sub(b, a), t));
+
+  function plane(a, b, c) { const n = cross(sub(b, a), sub(c, a)); const l = len(n); if (l < 1e-12) return null; const u = mul(n, 1 / l); return { n: u, w: dot(u, a) }; }
+  const clonePlane = p => ({ n: V(p.n.x, p.n.y, p.n.z), w: p.w });
+  const flipPlane = p => { p.n = mul(p.n, -1); p.w = -p.w; };
+  function poly(verts, p) { p = p || plane(verts[0], verts[1], verts[2]); return p ? { v: verts, p } : null; }
+  const clonePoly = q => ({ v: q.v.slice(), p: clonePlane(q.p) });
+  const flipPoly = q => { q.v.reverse(); flipPlane(q.p); };
+
+  function split(pl, q, cf, cb, f, b) {
+    let type = 0; const types = [];
+    for (const v of q.v) { const t = dot(pl.n, v) - pl.w; const ty = t < -EPS ? 2 : t > EPS ? 1 : 0; type |= ty; types.push(ty); }
+    if (type === 0) (dot(pl.n, q.p.n) > 0 ? cf : cb).push(q);
+    else if (type === 1) f.push(q);
+    else if (type === 2) b.push(q);
+    else {
+      const fv = [], bv = [];
+      for (let i = 0; i < q.v.length; i++) {
+        const j = (i + 1) % q.v.length, ti = types[i], tj = types[j], vi = q.v[i], vj = q.v[j];
+        if (ti !== 2) fv.push(vi);
+        if (ti !== 1) bv.push(vi);
+        if ((ti | tj) === 3) { const t = (pl.w - dot(pl.n, vi)) / dot(pl.n, sub(vj, vi)); const v = lerp(vi, vj, t); fv.push(v); bv.push(v); }
+      }
+      // Each half gets its own plane: flipping one must never flip the other.
+      if (fv.length >= 3) f.push({ v: fv, p: clonePlane(q.p) });
+      if (bv.length >= 3) b.push({ v: bv, p: clonePlane(q.p) });
+    }
+  }
+
+  class Node {
+    constructor(polys) { this.pl = null; this.f = null; this.b = null; this.polys = []; if (polys) this.build(polys); }
+    invert() { this.polys.forEach(flipPoly); if (this.pl) flipPlane(this.pl); if (this.f) this.f.invert(); if (this.b) this.b.invert(); const t = this.f; this.f = this.b; this.b = t; }
+    clip(list) { if (!this.pl) return list.slice(); let f = [], b = []; for (const q of list) split(this.pl, q, f, b, f, b); if (this.f) f = this.f.clip(f); b = this.b ? this.b.clip(b) : []; return f.concat(b); }
+    clipTo(n) { this.polys = n.clip(this.polys); if (this.f) this.f.clipTo(n); if (this.b) this.b.clipTo(n); }
+    all() { let a = this.polys.slice(); if (this.f) a = a.concat(this.f.all()); if (this.b) a = a.concat(this.b.all()); return a; }
+    build(list) {
+      if (!list.length) return;
+      if (!this.pl) this.pl = clonePlane(list[0].p);
+      const f = [], b = [];
+      for (const q of list) split(this.pl, q, this.polys, this.polys, f, b);
+      if (f.length) { if (!this.f) this.f = new Node(); this.f.build(f); }
+      if (b.length) { if (!this.b) this.b = new Node(); this.b.build(b); }
+    }
+  }
+  const cl = polys => polys.map(clonePoly);
+  function union(A, B) { const a = new Node(cl(A)), b = new Node(cl(B)); a.clipTo(b); b.clipTo(a); b.invert(); b.clipTo(a); b.invert(); a.build(b.all()); return a.all(); }
+  function subtract(A, B) { const a = new Node(cl(A)), b = new Node(cl(B)); a.invert(); a.clipTo(b); b.clipTo(a); b.invert(); b.clipTo(a); b.invert(); a.build(b.all()); a.invert(); return a.all(); }
+
+  // Box from its MIN corner (x, y, z) and size (w along X, d along Y, h along Z). Z is up.
+  function box(x, y, z, w, d, h) {
+    const faces = [[[0, 4, 6, 2], -1], [[1, 3, 7, 5], 1], [[0, 1, 5, 4], -1], [[2, 6, 7, 3], 1], [[0, 2, 3, 1], -1], [[4, 5, 7, 6], 1]];
+    const out = [];
+    for (const [idx] of faces) {
+      const vs = idx.map(i => V(x + w * (i & 1), y + d * ((i >> 1) & 1), z + h * ((i >> 2) & 1)));
+      const p = poly(vs); if (p) out.push(p);
+    }
+    return out;
+  }
+  // Cylinder between two points with radius r.
+  function cylinder(s, e, r, slices) {
+    slices = slices || 40;
+    const ray = sub(e, s), az = unit(ray), isY = Math.abs(az.y) > .5;
+    const ax = unit(cross(V(isY ? 1 : 0, isY ? 0 : 1, 0), az)), ay = unit(cross(ax, az));
+    const pt = (stack, t) => { const a = t * Math.PI * 2; const out = add(mul(ax, Math.cos(a)), mul(ay, Math.sin(a))); return add(add(s, mul(ray, stack)), mul(out, r)); };
+    const res = [];
+    for (let i = 0; i < slices; i++) {
+      const t0 = i / slices, t1 = (i + 1) / slices;
+      [poly([s, pt(0, t0), pt(0, t1)]), poly([pt(0, t1), pt(0, t0), pt(1, t0), pt(1, t1)]), poly([e, pt(1, t1), pt(1, t0)])].forEach(p => p && res.push(p));
+    }
+    return res;
+  }
+  // Watertight triangles: weld equal points, insert T-junction points into neighbouring edges, and
+  // fan from each polygon's centroid. Same method as StarkWorkshop's Csg.ToWatertightTriangles. Without
+  // it, edge lines show starbursts where a cut split one face but not its neighbour.
+  function watertight(polys, weld) {
+    weld = weld || 1e-4; const inv = 1 / weld, canon = new Map();
+    const key = v => Math.round(v.x * inv) + ',' + Math.round(v.y * inv) + ',' + Math.round(v.z * inv);
+    const C = v => { const k = key(v); let c = canon.get(k); if (!c) { c = v; canon.set(k, v); } return c; };
+    const P = [];
+    for (const q of polys) {
+      const vs = [];
+      for (const v of q.v) { const c = C(v); if (!vs.length || vs[vs.length - 1] !== c) vs.push(c); }
+      if (vs.length > 1 && vs[0] === vs[vs.length - 1]) vs.pop();
+      if (vs.length >= 3) P.push(vs);
+    }
+    const cell = 2, grid = new Map(), ck = (x, y, z) => x + '|' + y + '|' + z, cf = a => Math.floor(a / cell);
+    for (const v of canon.values()) { const k = ck(cf(v.x), cf(v.y), cf(v.z)); let l = grid.get(k); if (!l) grid.set(k, l = []); l.push(v); }
+    const onSeg = (a, b) => {
+      const ab = sub(b, a), l2 = dot(ab, ab), out = []; if (l2 < weld * weld) return out;
+      const x0 = cf(Math.min(a.x, b.x)) - 1, x1 = cf(Math.max(a.x, b.x)) + 1, y0 = cf(Math.min(a.y, b.y)) - 1, y1 = cf(Math.max(a.y, b.y)) + 1, z0 = cf(Math.min(a.z, b.z)) - 1, z1 = cf(Math.max(a.z, b.z)) + 1;
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) {
+        const l = grid.get(ck(x, y, z)); if (!l) continue;
+        for (const p of l) { if (p === a || p === b) continue; const t = dot(sub(p, a), ab) / l2; if (t <= 1e-9 || t >= 1 - 1e-9) continue; if (len(sub(p, add(a, mul(ab, t)))) <= weld) out.push([t, p]); }
+      }
+      return out.sort((m, n) => m[0] - n[0]).map(m => m[1]);
+    };
+    const tris = [];
+    for (const vs of P) {
+      const o = []; let ins = false;
+      for (let i = 0; i < vs.length; i++) { o.push(vs[i]); const extra = onSeg(vs[i], vs[(i + 1) % vs.length]); if (extra.length) { ins = true; o.push(...extra); } }
+      if (!ins) { for (let i = 2; i < o.length; i++) tris.push([o[0], o[i - 1], o[i]]); continue; }
+      let c = V(0, 0, 0); for (const v of o) c = add(c, v); c = mul(c, 1 / o.length);
+      for (let i = 0; i < o.length; i++) tris.push([c, o[i], o[(i + 1) % o.length]]);
+    }
+    return tris;
+  }
+  function triangles(polys) { const t = []; for (const q of polys) for (let i = 2; i < q.v.length; i++) t.push([q.v[0], q.v[i - 1], q.v[i]]); return t; }
+  const volume = tris => tris.reduce((s, t) => s + dot(t[0], cross(t[1], t[2])) / 6, 0);
+  function bounds(polys) {
+    if (!polys.length) return null;
+    const mn = V(Infinity, Infinity, Infinity), mx = V(-Infinity, -Infinity, -Infinity);
+    for (const q of polys) for (const v of q.v) { mn.x = Math.min(mn.x, v.x); mn.y = Math.min(mn.y, v.y); mn.z = Math.min(mn.z, v.z); mx.x = Math.max(mx.x, v.x); mx.y = Math.max(mx.y, v.y); mx.z = Math.max(mx.z, v.z); }
+    return { min: mn, max: mx };
+  }
+
+  // ---------------------------------------------------------------- expressions
+  // Numbers, parameter names, + - * / ( ) and unary minus. No eval: a typed formula can only compute.
+  function evalExpr(src, vars) {
+    const s = String(src == null ? '' : src).replace(/mm\b/g, ''); let i = 0;
+    const ws = () => { while (i < s.length && /\s/.test(s[i])) i++; };
+    const fail = m => { throw new Error(m); };
+    function primary() {
+      ws();
+      if (s[i] === '(') { i++; const v = expr(); ws(); if (s[i] !== ')') fail('missing )'); i++; return v; }
+      if (s[i] === '-') { i++; return -primary(); }
+      if (s[i] === '+') { i++; return primary(); }
+      let m = /^\d*\.?\d+(?:e[-+]?\d+)?/i.exec(s.slice(i));
+      if (m) { i += m[0].length; return parseFloat(m[0]); }
+      m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i));
+      if (m) { i += m[0].length; if (!(m[0] in vars)) fail('unknown name "' + m[0] + '"'); return vars[m[0]]; }
+      fail(i >= s.length ? 'empty' : 'unexpected "' + s[i] + '"');
+    }
+    function term() { let v = primary(); for (;;) { ws(); if (s[i] === '*') { i++; v *= primary(); } else if (s[i] === '/') { i++; const d = primary(); if (d === 0) fail('divide by 0'); v /= d; } else return v; } }
+    function expr() { let v = term(); for (;;) { ws(); if (s[i] === '+') { i++; v += term(); } else if (s[i] === '-') { i++; v -= term(); } else return v; } }
+    const v = expr(); ws(); if (i < s.length) fail('unexpected "' + s[i] + '"');
+    if (!isFinite(v)) fail('not a number');
+    return v;
+  }
+
+  // ---------------------------------------------------------------- the parametric model
+  // model = { name, params: [{name, expr}], features: [{id, name, type: 'box'|'cylinder', op: 'add'|'cut',
+  //   skip, x, y, z, w, d, h (box) | r, len, axis 'x'|'y'|'z' (cylinder), count, sx, sy, sz }] }  all numbers are expressions
+  function solveParams(params) {
+    const vars = {}, values = {}, errors = {};
+    for (const p of params) {
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(p.name || '')) { errors[p.name] = 'name: letters, digits, _'; continue; }
+      try { vars[p.name] = values[p.name] = evalExpr(p.expr, vars); } catch (e) { errors[p.name] = e.message; }
+    }
+    return { vars, values, errors };
+  }
+
+  function featureSolid(f, vars) {
+    const n = k => evalExpr(f[k], vars);
+    const count = Math.max(1, Math.min(200, Math.round(f.count == null || f.count === '' ? 1 : n('count'))));
+    const sx = f.sx ? n('sx') : 0, sy = f.sy ? n('sy') : 0, sz = f.sz ? n('sz') : 0;
+    let polys = [];
+    for (let k = 0; k < count; k++) {
+      const ox = n('x') + sx * k, oy = n('y') + sy * k, oz = n('z') + sz * k;
+      let one;
+      if (f.type === 'box') {
+        const w = n('w'), d = n('d'), h = n('h');
+        if (w <= 0 || d <= 0 || h <= 0) throw new Error('sizes must be above 0');
+        one = box(ox, oy, oz, w, d, h);
+      } else {
+        const r = n('r'), L = n('len');
+        if (r <= 0 || L <= 0) throw new Error('radius and length must be above 0');
+        const dir = f.axis === 'x' ? V(1, 0, 0) : f.axis === 'y' ? V(0, 1, 0) : V(0, 0, 1);
+        const s = V(ox, oy, oz); one = cylinder(s, add(s, mul(dir, L)), r);
+      }
+      polys = k === 0 ? one : union(polys, one);
+    }
+    return polys;
+  }
+
+  // Replays the timeline. Returns the solid, per-feature errors, and each feature's own solid.
+  function build(model) {
+    const { vars, values, errors: paramErrors } = solveParams(model.params || []);
+    let solid = [];
+    const errors = {}, own = {};
+    for (const f of model.features || []) {
+      if (f.skip) continue;
+      try {
+        const fs = featureSolid(f, vars); own[f.id] = fs;
+        solid = f.op === 'cut' ? (solid.length ? subtract(solid, fs) : solid) : (solid.length ? union(solid, fs) : fs);
+      } catch (e) { errors[f.id] = e.message; }
+    }
+    return { solid, errors, paramErrors, values, own };
+  }
+
+  // StarkWorkshop parts.json -> features. Only axis-aligned Cube and Cylinder parts map exactly;
+  // anything else is reported, not guessed.
+  function fromStarkParts(json) {
+    const parts = json.parts || [], features = [], skipped = [];
+    const r2 = v => Math.round(v * 100) / 100;
+    const axisOf = v => { const a = [Math.abs(v[0]), Math.abs(v[1]), Math.abs(v[2])], L = Math.hypot(...a); if (L === 0) return null; const k = a.indexOf(Math.max(...a)); return a[k] / L > .999 ? 'xyz'[k] : null; };
+    parts.forEach((p, i) => {
+      const L = v => Math.hypot(v[0], v[1], v[2]);
+      const ax = axisOf(p.ax), ay = axisOf(p.ay), az = axisOf(p.az);
+      const name = (p.name || p.type) + (p.hole ? ' (hole)' : '');
+      if (p.type === 'Cube' && ax && ay && az) {
+        const size = { [ax]: p.w * L(p.ax), [ay]: p.h * L(p.ay), [az]: p.d * L(p.az) };
+        features.push({ id: 'f' + (i + 1), name, type: 'box', op: p.hole ? 'cut' : 'add',
+          x: String(r2(p.origin[0] - size.x / 2)), y: String(r2(p.origin[1] - size.y / 2)), z: String(r2(p.origin[2] - size.z / 2)),
+          w: String(r2(size.x)), d: String(r2(size.y)), h: String(r2(size.z)), count: '1', sx: '', sy: '', sz: '' });
+      } else if ((p.type === 'Cylinder' || p.type === 'Tube') && ay) {
+        const Lh = p.h * L(p.ay), r = p.r1 * L(p.ax), sign = p.ay['xyz'.indexOf(ay)] < 0 ? -1 : 1;
+        const o = p.origin.slice(); o['xyz'.indexOf(ay)] -= Lh / 2;
+        features.push({ id: 'f' + (i + 1), name, type: 'cylinder', op: p.hole ? 'cut' : 'add', axis: ay,
+          x: String(r2(o[0])), y: String(r2(o[1])), z: String(r2(o[2])), r: String(r2(r)), len: String(r2(Lh)), count: '1', sx: '', sy: '', sz: '' });
+        if (sign < 0) {} // a flipped axis is the same cylinder: start point is still the low end
+      } else skipped.push((p.name || p.type) + ' (' + p.type + (ax && ay && az ? '' : ', rotated') + ')');
+    });
+    return { model: { name: 'From headset', params: [], features }, skipped };
+  }
+
+  const api = { box, cylinder, union, subtract, triangles, watertight, volume, bounds, evalExpr, solveParams, build, fromStarkParts };
+  if (typeof module !== 'undefined') module.exports = api; else root.CORE = api;
+})(this);
+
+</script>
+<script>
+// Desk robot arm: the parts as parametric solids, the joint chain, reach, and servo load.
+// Pure JS on top of core.js (CSG + formulas). Every part is built in its OWN frame:
+// for a pitch link the joint axis is Y through the origin and the link points up +Z.
+(function (root) {
+  const C = (typeof module !== 'undefined') ? require('./core.js') : root.CORE;
+  const V = (x, y, z) => ({ x, y, z });
+
+  // Typical datasheet numbers. Servo sizes vary by maker: the page asks you to check yours.
+  const PARAMS = [
+    { group: 'Arm', name: 'base_w', expr: '90', note: 'base plate width' },
+    { group: 'Arm', name: 'base_h', expr: '48', note: 'base height' },
+    { group: 'Arm', name: 'turn_r', expr: '42', note: 'turntable radius' },
+    { group: 'Arm', name: 'turn_h', expr: '6', note: 'turntable thickness' },
+    { group: 'Arm', name: 'shoulder_h', expr: '60', note: 'shoulder height above turntable' },
+    { group: 'Arm', name: 'upper_len', expr: '120', note: 'shoulder to elbow' },
+    { group: 'Arm', name: 'fore_len', expr: '110', note: 'elbow to wrist' },
+    { group: 'Arm', name: 'wrist_len', expr: '40', note: 'wrist to gripper' },
+    { group: 'Arm', name: 'link_t', expr: '6', note: 'plate thickness' },
+    { group: 'Arm', name: 'wall', expr: '5', note: 'material around a servo' },
+    { group: 'Gripper', name: 'grip_len', expr: '45', note: 'finger length' },
+    { group: 'Gripper', name: 'grip_gap', expr: '8', note: 'gap when closed' },
+    { group: 'Gripper', name: 'grip_travel', expr: '18', note: 'extra opening per finger' },
+    { group: 'MG996R (base, shoulder, elbow)', name: 'mg_l', expr: '40.7', note: 'body length' },
+    { group: 'MG996R (base, shoulder, elbow)', name: 'mg_w', expr: '19.7', note: 'body width' },
+    { group: 'MG996R (base, shoulder, elbow)', name: 'mg_hole', expr: '49.5', note: 'tab hole spacing' },
+    { group: 'MG996R (base, shoulder, elbow)', name: 'mg_shaft', expr: '10', note: 'shaft from body end' },
+    { group: 'MG996R (base, shoulder, elbow)', name: 'mg_screw', expr: '4.2', note: 'tab hole diameter' },
+    { group: 'SG90 (wrist, gripper)', name: 'sg_l', expr: '22.7', note: 'body length' },
+    { group: 'SG90 (wrist, gripper)', name: 'sg_w', expr: '12.2', note: 'body width' },
+    { group: 'SG90 (wrist, gripper)', name: 'sg_hole', expr: '27.8', note: 'tab hole spacing' },
+    { group: 'SG90 (wrist, gripper)', name: 'sg_shaft', expr: '6', note: 'shaft from body end' },
+    { group: 'SG90 (wrist, gripper)', name: 'sg_screw', expr: '2.2', note: 'tab hole diameter' },
+    { group: 'Load', name: 'payload', expr: '50', note: 'grams held at the tip' },
+    { group: 'Load', name: 'print_density', expr: '0.45', note: 'share of solid plastic (infill + walls)' }
+  ];
+  const SERVO = { mg: { name: 'MG996R', grams: 55, torque: 9.4 }, sg: { name: 'SG90', grams: 9, torque: 1.8 } };
+  const PLA = 1.24; // g/cm3
+
+  // Helpers in a part's own frame.
+  const boxC = (cx, cy, z0, w, d, h) => C.box(cx - w / 2, cy - d / 2, z0, w, d, h);         // centred in X/Y, from z0 up
+  const cylY = (x, z, r, y0, y1) => C.cylinder(V(x, y0, z), V(x, y1, z), r, 36);
+  const cylZ = (x, y, r, z0, z1) => C.cylinder(V(x, y, z0), V(x, y, z1), r, 36);
+  const cut = (a, b) => C.subtract(a, b), add = (a, b) => C.union(a, b);
+
+  // Servo window through a plate (normal Y), placed so the SHAFT sits at height zs.
+  function servoWindow(s, k, zs, t) {
+    const l = s[k + '_l'], w = s[k + '_w'], sh = s[k + '_shaft'];
+    const z0 = zs - (l - sh);                                    // body from z0 to z0 + l, shaft sh from the top end
+    let c = boxC(0, 0, z0, w + .4, t + 2, l + .4);                // 0.2 mm clearance each side for printing
+    const mid = z0 + l / 2, hs = s[k + '_hole'] / 2, r = s[k + '_screw'] / 2;
+    c = add(c, cylY(0, mid - hs, r, -t, t)); c = add(c, cylY(0, mid + hs, r, -t, t));
+    return c;
+  }
+  // Servo horn mount: centre screw + 4 holes on the horn circle, through a plate (normal Y), at height z.
+  function hornHoles(z, t, small) {
+    const r0 = small ? 1.1 : 1.6, rr = small ? 5 : 7, rh = small ? .8 : 1;
+    let c = cylY(0, z, r0, -t, t);
+    [[rr, 0], [-rr, 0], [0, rr], [0, -rr]].forEach(([dx, dz]) => { c = add(c, cylY(dx, z + dz, rh, -t, t)); });
+    return c;
+  }
+  // A link plate: rounded ends, horn mount at the bottom joint (z = 0), a servo for the next joint at the top (z = L).
+  function link(s, L, w, horn, top) {
+    const t = s.link_t;
+    let p = boxC(0, 0, 0, w, t, L);
+    p = add(p, cylY(0, 0, w / 2, -t / 2, t / 2)); p = add(p, cylY(0, L, w / 2, -t / 2, t / 2));
+    p = cut(p, hornHoles(0, t, horn === 'sg'));
+    if (top) p = cut(p, servoWindow(s, top, L, t));
+    // Lightening slot between the two ends, when there is room for one.
+    const room = L - (top ? s[top + '_l'] : 0) - w;
+    if (room > 25) p = cut(p, boxC(0, 0, w / 2 + 4, w * .35, t + 2, room - 8));
+    return p;
+  }
+
+  function solve(paramList) {
+    const r = C.solveParams(paramList);
+    return { s: r.vars, errors: r.errors };
+  }
+
+  // All printable parts, each in its own frame, plus how they connect.
+  function buildParts(s) {
+    const t = s.link_t, wmg = s.mg_w + 2 * s.wall, wsg = s.sg_w + 2 * s.wall;
+    const parts = {};
+    // Base: block with the yaw servo standing in a pocket (shaft up, at the centre) and 4 corner screw holes.
+    let base = boxC(0, 0, 0, s.base_w, s.base_w, s.base_h);
+    const zs = s.base_h; // shaft at the top centre
+    base = cut(base, C.box(-(s.mg_l - s.mg_shaft) - .2, -s.mg_w / 2 - .2, 3, s.mg_l + .4, s.mg_w + .4, s.base_h));   // pocket, 3 mm floor
+    const mid = -(s.mg_l - s.mg_shaft) + s.mg_l / 2;
+    [-1, 1].forEach(k => { base = cut(base, cylZ(mid + k * s.mg_hole / 2, 0, s.mg_screw / 2, 3, s.base_h + 1)); });
+    const q = s.base_w / 2 - 8;
+    [[q, q], [-q, q], [q, -q], [-q, -q]].forEach(([x, y]) => { base = cut(base, cylZ(x, y, 2.1, -1, s.base_h + 1)); });
+    parts.base = base;
+    // Turntable: disc on the base servo horn, with the shoulder bracket (a plate carrying the shoulder servo).
+    let tt = cylZ(0, 0, s.turn_r, 0, s.turn_h);
+    tt = cut(tt, cylZ(0, 0, 1.6, -1, s.turn_h + 1));
+    [[7, 0], [-7, 0], [0, 7], [0, -7]].forEach(([x, y]) => { tt = cut(tt, cylZ(x, y, 1, -1, s.turn_h + 1)); });
+    const by = -(t + 1);                                         // bracket sits beside the upper arm plate
+    let br = C.box(-wmg / 2, by - t / 2, s.turn_h, wmg, t, s.shoulder_h);
+    br = add(br, cylY(0, s.turn_h + s.shoulder_h, wmg / 2, by - t / 2, by + t / 2));
+    const win = servoWindow(s, 'mg', s.turn_h + s.shoulder_h, t).map(p => p); // window is centred on y = 0; move it to the bracket
+    br = cut(br, shiftY(win, by));
+    parts.turntable = add(tt, br);
+    // Arm links, alternating sides so each servo body sits in one plate and drives the next.
+    parts.upper = link(s, s.upper_len, wmg, 'mg', 'mg');
+    parts.fore = link(s, s.fore_len, wmg, 'mg', 'sg');
+    parts.wrist = link(s, s.wrist_len, wsg, 'sg', null);
+    // Gripper: palm across the wrist end + two fingers (built at the closed position; fingers slide in X).
+    const palmW = s.grip_gap + 2 * (s.grip_travel + 8);
+    parts.palm = C.box(-palmW / 2, -t / 2, 0, palmW, t * 2, 8);
+    parts.finger = C.box(0, -t / 2, 0, 6, t * 2, s.grip_len);
+    return parts;
+  }
+  function shiftY(polys, dy) { return polys.map(p => ({ v: p.v.map(v => ({ x: v.x, y: v.y + dy, z: v.z })), p: { n: p.p.n, w: p.p.w + p.p.n.y * dy } })); }
+
+  // Where each joint is, in its parent's frame. Pitch joints turn about Y; positive tips the arm forward (+X).
+  function chain(s) {
+    const t = s.link_t;
+    return {
+      j1: { z: s.base_h },                                        // base yaw (about Z)
+      j2: { z: s.turn_h + s.shoulder_h, y: 0 },                   // shoulder, in the turntable frame
+      j3: { z: s.upper_len, y: t + 1 },                           // elbow: forearm plate beside the upper arm
+      j4: { z: s.fore_len, y: -(t + 1) },                         // wrist: back to the middle line
+      grip: { z: s.wrist_len },
+      tip: s.wrist_len + s.grip_len
+    };
+  }
+
+  // Tip position for joint angles (degrees), in the base frame. Same maths the 3D view does with groups.
+  function tip(s, a) {
+    const r = d => d * Math.PI / 180, c = chain(s);
+    const a1 = r(a.shoulder), a2 = a1 + r(a.elbow), a3 = a2 + r(a.wrist);
+    const reach = s.upper_len * Math.sin(a1) + s.fore_len * Math.sin(a2) + c.tip * Math.sin(a3);
+    const z = s.base_h + c.j2.z + s.upper_len * Math.cos(a1) + s.fore_len * Math.cos(a2) + c.tip * Math.cos(a3);
+    const yaw = r(a.base);
+    return { x: reach * Math.cos(yaw), y: reach * Math.sin(yaw), z, reach };
+  }
+
+  const LIMITS = { base: [-90, 90], shoulder: [-90, 90], elbow: [-135, 135], wrist: [-90, 90] };
+
+  // Reachable tip points in the arm's plane (r = forward, z = up), skipping any that would go into the desk.
+  function reachCloud(s) {
+    const pts = []; let maxR = 0, maxZ = 0;
+    for (let sh = -90; sh <= 90; sh += 7.5) for (let el = -135; el <= 135; el += 11.25) for (const wr of [-60, -20, 20, 60]) {
+      const p = tip(s, { base: 0, shoulder: sh, elbow: el, wrist: wr });
+      if (p.z < 5) continue;
+      pts.push([p.reach, p.z]); maxR = Math.max(maxR, Math.abs(p.reach)); maxZ = Math.max(maxZ, p.z);
+    }
+    return { pts, maxR, maxZ };
+  }
+
+  // Worst-case static load (arm straight out sideways) on each pitch servo, in kg.cm, versus its rating.
+  function loads(s, partGrams) {
+    const g = (k) => partGrams[k] || 0, c = chain(s);
+    const tipLen = c.tip, L1 = s.upper_len, L2 = s.fore_len;
+    // [grams, distance from the joint in mm] for everything beyond each joint
+    const fromWrist = [[g('wrist'), s.wrist_len / 2], [SERVO.sg.grams + g('palm') + 2 * g('finger'), s.wrist_len + s.grip_len / 3], [s.payload, tipLen]];
+    const fromElbow = [[g('fore'), L2 / 2], [SERVO.sg.grams, L2]].concat(fromWrist.map(([m, d]) => [m, d + L2]));
+    const fromShoulder = [[g('upper'), L1 / 2], [SERVO.mg.grams, L1]].concat(fromElbow.map(([m, d]) => [m, d + L1]));
+    const kgcm = list => list.reduce((t, [m, d]) => t + (m / 1000) * (d / 10), 0);
+    return [
+      { joint: 'Shoulder', servo: SERVO.mg, need: kgcm(fromShoulder) },
+      { joint: 'Elbow', servo: SERVO.mg, need: kgcm(fromElbow) },
+      { joint: 'Wrist', servo: SERVO.sg, need: kgcm(fromWrist) }
+    ].map(x => Object.assign(x, { share: x.need / x.servo.torque }));
+  }
+
+  function grams(polys, s) { return Math.max(0, C.volume(C.triangles(polys))) / 1000 * PLA * s.print_density; }
+
+  const api = { PARAMS, SERVO, LIMITS, solve, buildParts, chain, tip, reachCloud, loads, grams };
+  if (typeof module !== 'undefined') module.exports = api; else root.ARM = api;
+})(this);
+
+</script>
+<script>
+(function () {
+  const C = window.CORE, A = window.ARM, $ = id => document.getElementById(id);
+  const STORE = 'css-design.arm.v1';
+  const defaults = () => A.PARAMS.map(p => Object.assign({}, p));
+  let params = (function () { try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (Array.isArray(s) && s.length === A.PARAMS.length) return s; } catch (e) {} return defaults(); })();
+  const save = () => { try { localStorage.setItem(STORE, JSON.stringify(params)); } catch (e) {} };
+  let S = A.solve(params).s, parts = {}, grams = {};
+  const pose = { base: 20, shoulder: 35, elbow: 55, wrist: 40, grip: .6 };
+  let selected = null;
+
+  // ---------------------------------------------------------------- scene
+  const view = $('view'), canvas = $('canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, 1, 1, 50000);
+  const controls = new THREE.OrbitControls(camera, canvas); controls.enableDamping = true;
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f99, .85));
+  const sun = new THREE.DirectionalLight(0xffffff, .75); sun.position.set(1, 2, 1.4); scene.add(sun);
+  const world = new THREE.Group(); world.rotation.x = -Math.PI / 2; scene.add(world);   // model is Z-up
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const matPart = new THREE.MeshStandardMaterial({ roughness: .6, metalness: 0, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+  const matSel = new THREE.MeshStandardMaterial({ roughness: .6, metalness: 0, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+  const matServo = new THREE.MeshStandardMaterial({ roughness: .5, metalness: .1 });
+  const matEdge = new THREE.LineBasicMaterial();
+  const matReach = new THREE.PointsMaterial({ size: 2.2, sizeAttenuation: false, transparent: true, opacity: .55 });
+  const matRing = new THREE.LineDashedMaterial({ dashSize: 8, gapSize: 6 });
+  let grid = null;
+  function applyTheme() {
+    matPart.color.set(css('--part')); matSel.color.set(css('--part')); matSel.emissive.set(css('--accent')); matSel.emissiveIntensity = .55;
+    matServo.color.set(css('--servo')); matEdge.color.set(css('--edge')); matReach.color.set(css('--reach')); matRing.color.set(css('--reach'));
+    if (grid) { world.remove(grid); grid.geometry.dispose(); }
+    grid = new THREE.GridHelper(1000, 20, css('--gridc'), css('--gridc')); grid.rotation.x = Math.PI / 2; world.add(grid);
+  }
+  const mq = window.matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', applyTheme);
+  new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  // The joint chain as nested groups: moving a joint moves everything after it.
+  const G = { base: new THREE.Group(), j1: new THREE.Group(), j2: new THREE.Group(), j3: new THREE.Group(), j4: new THREE.Group(), grip: new THREE.Group() };
+  world.add(G.base); G.base.add(G.j1); G.j1.add(G.j2); G.j2.add(G.j3); G.j3.add(G.j4); G.j4.add(G.grip);
+  const tipMark = new THREE.Object3D(); G.grip.add(tipMark);
+  const meshes = {}; let servoGroup = null, reachPts = null, ring = null, fingerL = null, fingerR = null;
+  const PART_GROUP = { base: 'base', turntable: 'j1', upper: 'j2', fore: 'j3', wrist: 'j4', palm: 'grip' };
+
+  function geomFrom(polys) {
+    const tris = C.watertight(polys), pos = new Float32Array(tris.length * 9);
+    tris.forEach((t, i) => t.forEach((v, k) => { pos[i * 9 + k * 3] = v.x; pos[i * 9 + k * 3 + 1] = v.y; pos[i * 9 + k * 3 + 2] = v.z; }));
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.computeVertexNormals(); return g;
+  }
+  function partMesh(name, polys) {
+    const g = geomFrom(polys), m = new THREE.Mesh(g, selected === name || (selected === 'grip' && (name === 'palm' || name === 'finger')) ? matSel : matPart);
+    m.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), matEdge)); m.userData.part = name; return m;
+  }
+  function clear(obj) { if (!obj) return; obj.parent && obj.parent.remove(obj); obj.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+
+  function servoBox(kind, cx, cy, zs, height) { // a servo body standing in a window, shaft at height zs
+    const l = S[kind + '_l'], w = S[kind + '_w'], sh = S[kind + '_shaft'];
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, height, l), matServo);
+    m.position.set(cx, cy, zs - (l - sh) + l / 2); return m;
+  }
+
+  function rebuildGeometry() {
+    S = A.solve(params).s;
+    try { parts = A.buildParts(S); } catch (e) { toast('Could not build the arm: ' + e.message); return; }
+    grams = {}; for (const k in parts) grams[k] = A.grams(parts[k], S);
+    for (const k in meshes) clear(meshes[k]); clear(fingerL); clear(fingerR); clear(reachPts); clear(ring);
+    // The servo boxes hang off the joint groups, not off servoGroup: remove each one, or old ones stay behind after a rebuild.
+    (servoGroup && servoGroup.userData.items || []).forEach(clear);
+    for (const k in PART_GROUP) { meshes[k] = partMesh(k, parts[k]); G[PART_GROUP[k]].add(meshes[k]); }
+    fingerL = partMesh('finger', parts.finger); fingerR = partMesh('finger', parts.finger); G.grip.add(fingerL); G.grip.add(fingerR);
+    const c = A.chain(S), t = S.link_t;
+    G.j1.position.set(0, 0, c.j1.z); G.j2.position.set(0, 0, c.j2.z); G.j3.position.set(0, c.j3.y, c.j3.z); G.j4.position.set(0, c.j4.y, c.j4.z); G.grip.position.set(0, 0, c.grip.z);
+    tipMark.position.set(0, 0, S.grip_len);
+    // Servos: not printed, shown so you can see what goes where.
+    servoGroup = new THREE.Group();
+    const baseServo = new THREE.Mesh(new THREE.BoxGeometry(S.mg_l, S.mg_w, 40), matServo); baseServo.position.set(-(S.mg_l - S.mg_shaft) + S.mg_l / 2, 0, 3 + 20); G.base.add(baseServo);
+    const sh = servoBox('mg', 0, -(t + 1) - 14, S.turn_h + S.shoulder_h, 30); G.j1.add(sh);
+    const el = servoBox('mg', 0, -14 - t / 2, S.upper_len, 30); G.j2.add(el);
+    const wr = servoBox('sg', 0, (t + 1) + 9 + t / 2, S.fore_len, 22); G.j3.add(wr);
+    const gs = new THREE.Mesh(new THREE.BoxGeometry(S.sg_l, 22, S.sg_w), matServo); gs.position.set(0, -t / 2 - 11, 12); G.grip.add(gs);
+    [baseServo, sh, el, wr, gs].forEach(m => { m.userData.servo = true; });
+    servoGroup.userData.items = [baseServo, sh, el, wr, gs];
+    setServosVisible($('t-servo').getAttribute('aria-pressed') === 'true');
+    // Reach: every tip position the joints allow, in the arm's turning plane, above the desk.
+    const cloud = A.reachCloud(S), pos = new Float32Array(cloud.pts.length * 3);
+    cloud.pts.forEach((p, i) => { pos[i * 3] = p[0]; pos[i * 3 + 1] = 0; pos[i * 3 + 2] = p[1] - S.base_h; });
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    reachPts = new THREE.Points(g, matReach); G.j1.add(reachPts);
+    const rp = []; for (let i = 0; i <= 128; i++) { const a = i / 128 * Math.PI * 2; rp.push(new THREE.Vector3(Math.cos(a) * cloud.maxR, Math.sin(a) * cloud.maxR, .5)); }
+    ring = new THREE.Line(new THREE.BufferGeometry().setFromPoints(rp), matRing); ring.computeLineDistances(); world.add(ring);
+    setReachVisible($('t-reach').getAttribute('aria-pressed') === 'true');
+    S._maxR = cloud.maxR; S._maxZ = cloud.maxZ;
+    applyPose(); renderChecks(); renderBom();
+  }
+  function setServosVisible(on) { (servoGroup && servoGroup.userData.items || []).forEach(m => { m.visible = on; }); }
+  function setReachVisible(on) { if (reachPts) reachPts.visible = on; if (ring) ring.visible = on; }
+
+  function applyPose() {
+    const r = d => d * Math.PI / 180;
+    G.j1.rotation.z = r(pose.base); G.j2.rotation.y = r(pose.shoulder); G.j3.rotation.y = r(pose.elbow); G.j4.rotation.y = r(pose.wrist);
+    const open = S.grip_gap / 2 + pose.grip * S.grip_travel;
+    if (fingerL) fingerL.position.set(-open - 6, 0, 0); if (fingerR) fingerR.position.set(open, 0, 0);
+    renderReadout();
+  }
+
+  // ---------------------------------------------------------------- panels
+  const TREE = [['base', 'Base', '', 0], ['turntable', 'Turntable', 'J1 base', 1], ['upper', 'Upper arm', 'J2 shoulder', 2], ['fore', 'Forearm', 'J3 elbow', 3], ['wrist', 'Wrist', 'J4 wrist', 4], ['grip', 'Gripper', 'J5 grip', 5]];
+  function renderTree() {
+    $('tree').innerHTML = '';
+    TREE.forEach(([k, name, j, depth]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'titem' + (selected === k ? ' sel' : '');
+      b.style.paddingLeft = (6 + depth * 10) + 'px';
+      b.innerHTML = '<span class="ind">' + (depth ? '└' : '■') + '</span><span>' + name + '</span><span class="j">' + j + '</span>';
+      b.addEventListener('click', () => { selected = selected === k ? null : k; renderTree(); recolor(); });
+      $('tree').appendChild(b);
+    });
+  }
+  function recolor() { world.traverse(o => { if (o.isMesh && o.userData.part) o.material = (selected === o.userData.part || (selected === 'grip' && (o.userData.part === 'palm' || o.userData.part === 'finger'))) ? matSel : matPart; }); }
+
+  function renderParams() {
+    const solved = A.solve(params), groups = {};
+    params.forEach((p, i) => { (groups[p.group] = groups[p.group] || []).push([p, i]); });
+    $('params').innerHTML = '';
+    for (const gname in groups) {
+      const box = document.createElement('div'); box.className = 'pgroup'; box.innerHTML = '<span class="label">' + gname + '</span>';
+      groups[gname].forEach(([p, i]) => {
+        const row = document.createElement('div'); row.className = 'prow';
+        const err = C.solveParams(params).errors[p.name];
+        row.innerHTML = '<span class="pn" title="' + p.note + '">' + p.name + '</span><input id="p-' + i + '" aria-label="' + p.name + ': ' + p.note + '" title="' + p.note + '" value="' + p.expr.replace(/"/g, '&quot;') + '"' + (err ? ' class="bad"' : '') + '><span class="val mono">' + (err ? '!' : fmt(solved.s[p.name])) + '</span>';
+        const inp = row.querySelector('input');
+        inp.addEventListener('input', () => { p.expr = inp.value; schedule(); });
+        box.appendChild(row);
+      });
+      $('params').appendChild(box);
+    }
+  }
+  function refreshParamValues() {
+    const solved = C.solveParams(params);
+    params.forEach((p, i) => { const inp = $('p-' + i); if (!inp) return; const err = solved.errors[p.name]; inp.classList.toggle('bad', !!err); inp.nextElementSibling.textContent = err ? '!' : fmt(solved.values[p.name]); inp.nextElementSibling.title = err || ''; });
+    return Object.keys(solved.errors).length === 0;
+  }
+  let timer = null;
+  function schedule() { const okp = refreshParamValues(); clearTimeout(timer); if (!okp) return; timer = setTimeout(() => { rebuildGeometry(); save(); }, 160); }
+  $('reset').addEventListener('click', () => { params = defaults(); save(); renderParams(); rebuildGeometry(); toast('Parameters reset to the defaults.'); });
+
+  const JOINTS = [['base', 'Base', -90, 90, 1], ['shoulder', 'Shoulder', -90, 90, 1], ['elbow', 'Elbow', -135, 135, 1], ['wrist', 'Wrist', -90, 90, 1], ['grip', 'Gripper', 0, 1, .01]];
+  function renderJoints() {
+    $('joints').innerHTML = '';
+    JOINTS.forEach(([k, name, lo, hi, step]) => {
+      const row = document.createElement('div'); row.className = 'joint';
+      row.innerHTML = '<label for="j-' + k + '">' + name + '</label><input id="j-' + k + '" type="range" min="' + lo + '" max="' + hi + '" step="' + step + '" value="' + pose[k] + '"><span class="v" id="jv-' + k + '"></span>';
+      row.querySelector('input').addEventListener('input', e => { stopDemo(); pose[k] = parseFloat(e.target.value); applyPose(); syncJointLabels(); });
+      $('joints').appendChild(row);
+    });
+    syncJointLabels();
+  }
+  function syncJointLabels() { JOINTS.forEach(([k]) => { $('j-' + k).value = pose[k]; $('jv-' + k).textContent = k === 'grip' ? Math.round(pose.grip * 100) + '% open' : Math.round(pose[k]) + '°'; }); }
+
+  const POSES = {
+    Home: { base: 0, shoulder: 0, elbow: 0, wrist: 0, grip: .5 },
+    'Reach out': { base: 0, shoulder: 70, elbow: 20, wrist: 0, grip: .8 },
+    'Pick from desk': { base: 30, shoulder: 60, elbow: 72, wrist: 40, grip: 1 },
+    'Hold up': { base: -30, shoulder: 20, elbow: 70, wrist: -10, grip: .1 }
+  };
+  Object.keys(POSES).forEach(n => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'tb'; b.textContent = n;
+    b.addEventListener('click', () => { stopDemo(); animateTo(POSES[n], 700); }); $('poses').appendChild(b);
+  });
+
+  // ---------------------------------------------------------------- motion
+  let anim = null;
+  function animateTo(target, ms, done) {
+    const from = Object.assign({}, pose), t0 = performance.now();
+    anim = { step(now) { let u = Math.min(1, (now - t0) / ms); u = u * u * (3 - 2 * u); for (const k in target) pose[k] = from[k] + (target[k] - from[k]) * u; applyPose(); syncJointLabels(); if (u >= 1) { anim = null; done && done(); } } };
+  }
+  const DEMO = [
+    [{ base: 35, shoulder: 40, elbow: 50, wrist: 30, grip: 1 }, 900],
+    [{ base: 35, shoulder: 60, elbow: 72, wrist: 40, grip: 1 }, 800],
+    [{ grip: .12 }, 500],
+    [{ shoulder: 25, elbow: 60, wrist: 10 }, 800],
+    [{ base: -45 }, 1100],
+    [{ shoulder: 60, elbow: 72, wrist: 40 }, 800],
+    [{ grip: 1 }, 500],
+    [{ base: 0, shoulder: 0, elbow: 0, wrist: 0, grip: .5 }, 1100]
+  ];
+  let demoOn = false, demoI = 0;
+  function nextDemo() { if (!demoOn) return; const [t, ms] = DEMO[demoI % DEMO.length]; demoI++; animateTo(t, ms, () => setTimeout(nextDemo, 150)); }
+  function stopDemo() { if (!demoOn) return; demoOn = false; $('play').setAttribute('aria-pressed', 'false'); $('play').textContent = '▶ Play demo'; }
+  $('play').addEventListener('click', () => {
+    demoOn = !demoOn; $('play').setAttribute('aria-pressed', String(demoOn)); $('play').textContent = demoOn ? '■ Stop demo' : '▶ Play demo';
+    if (demoOn) { demoI = 0; nextDemo(); } else anim = null;
+  });
+
+  // ---------------------------------------------------------------- checks
+  const fmt = v => (Math.round(v * 10) / 10).toLocaleString('en-US');
+  function renderReadout() {
+    const p = A.tip(S, pose);
+    $('readout').innerHTML = '<span>Gripper tip <b>X ' + fmt(p.x) + ' · Y ' + fmt(p.y) + ' · Z ' + fmt(p.z) + ' mm</b></span>' +
+      '<span>Reach <b>' + fmt(S._maxR || 0) + ' mm</b> around the base · highest point <b>' + fmt(S._maxZ || 0) + ' mm</b></span>' +
+      (p.z < 5 ? '<span style="color:var(--err)">The gripper is below the desk in this pose.</span>' : '');
+  }
+  function renderChecks() {
+    $('loads').innerHTML = A.loads(S, grams).map(l => {
+      const pct = l.share * 100, cls = pct > 100 ? 'bad' : pct > 50 ? 'warn' : '';
+      const verdict = pct > 100 ? '<span class="pill p-bad">too weak</span>' : pct > 50 ? '<span class="pill p-warn">tight</span>' : '<span class="pill p-ok">fine</span>';
+      return '<div class="load"><div class="row"><span>' + l.joint + ' · ' + l.servo.name + '</span><span class="mono">' + fmt(l.need) + ' / ' + l.servo.torque + ' kg·cm ' + verdict + '</span></div><div class="track"><span class="fill ' + cls + '" style="width:' + Math.min(100, pct) + '%"></span><span class="rule"></span></div></div>';
+    }).join('');
+  }
+  const BOM = [['base', 'Base', 1], ['turntable', 'Turntable + bracket', 1], ['upper', 'Upper arm', 1], ['fore', 'Forearm', 1], ['wrist', 'Wrist', 1], ['palm', 'Gripper palm', 1], ['finger', 'Gripper finger', 2]];
+  const inFrame = window.self !== window.top;
+  function renderBom() {
+    let total = 0;
+    $('bom').innerHTML = BOM.map(([k, name, q]) => { const g = grams[k] * q; total += g; return '<tr><td>' + name + '</td><td class="n">' + q + '</td><td class="n">' + fmt(g) + '</td><td>' + (inFrame ? '' : '<button class="dl" type="button" data-stl="' + k + '">STL</button>') + '</td></tr>'; }).join('') +
+      '<tr><td><b>Printed total</b></td><td></td><td class="n"><b>' + fmt(total) + '</b></td><td></td></tr>' +
+      '<tr><td colspan="4" class="note">Plus 3 × MG996R, 2 × SG90, M3 and M4 screws.</td></tr>';
+    $('dlnote').textContent = inFrame ? 'STL files download from the GitHub Pages version of this page.' : 'Each STL is in millimetres, Z up, ready for your slicer.';
+    $('bom').querySelectorAll('[data-stl]').forEach(b => b.addEventListener('click', () => downloadStl(b.dataset.stl)));
+  }
+  function downloadStl(k) {
+    const tris = C.watertight(parts[k]), buf = new ArrayBuffer(84 + tris.length * 50), dv = new DataView(buf);
+    const head = 'CSS Design ' + k + ' mm Z-up'; for (let i = 0; i < head.length; i++) dv.setUint8(i, head.charCodeAt(i));
+    dv.setUint32(80, tris.length, true); let o = 84;
+    for (const t of tris) {
+      const ux = t[1].x - t[0].x, uy = t[1].y - t[0].y, uz = t[1].z - t[0].z, vx = t[2].x - t[0].x, vy = t[2].y - t[0].y, vz = t[2].z - t[0].z;
+      let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; const l = Math.hypot(nx, ny, nz) || 1;
+      [nx / l, ny / l, nz / l].forEach(v => { dv.setFloat32(o, v, true); o += 4; });
+      for (const v of t) { dv.setFloat32(o, v.x, true); dv.setFloat32(o + 4, v.y, true); dv.setFloat32(o + 8, v.z, true); o += 12; }
+      dv.setUint16(o, 0, true); o += 2;
+    }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([buf], { type: 'model/stl' })); a.download = 'robot-arm-' + k + '.stl'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  // ---------------------------------------------------------------- views
+  function resize() { const w = view.clientWidth, h = view.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+  new ResizeObserver(resize).observe(view);
+  const toThree = (x, y, z) => new THREE.Vector3(x, z, -y);
+  function setView(kind) {
+    const c = toThree(60, 0, 170), d = { iso: [1.1, -1.4, .75], front: [0.0001, -1, .12], top: [0.0001, -0.0001, 1] }[kind] || [1.1, -1.4, .75];
+    const v = toThree(d[0], d[1], d[2]).normalize(), dist = 1150;
+    controls.target.copy(c); camera.position.copy(c).add(v.multiplyScalar(dist)); controls.update();
+  }
+  document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+  [['t-reach', setReachVisible], ['t-servo', setServosVisible]].forEach(([id, fn]) => $(id).addEventListener('click', e => { const on = e.currentTarget.getAttribute('aria-pressed') !== 'true'; e.currentTarget.setAttribute('aria-pressed', String(on)); fn(on); }));
+
+  // ---------------------------------------------------------------- real size (WebXR, Quest browser)
+  let xrSession = null; const xrRoot = new THREE.Group();
+  async function xrMode() { if (!navigator.xr) return null; for (const m of ['immersive-ar', 'immersive-vr']) { try { if (await navigator.xr.isSessionSupported(m)) return m; } catch (e) {} } return null; }
+  $('xr').addEventListener('click', async () => {
+    if (xrSession) { xrSession.end(); return; }
+    const mode = await xrMode();
+    if (!mode) { toast('Real size needs a headset. Open the GitHub Pages version in your Quest browser.'); return; }
+    try {
+      const s = await navigator.xr.requestSession(mode, { optionalFeatures: ['local-floor', 'hand-tracking'] });
+      renderer.xr.enabled = true; renderer.xr.setReferenceSpaceType('local-floor'); await renderer.xr.setSession(s); xrSession = s; $('xr').textContent = 'Leave real size';
+      scene.remove(world); xrRoot.add(world); scene.add(xrRoot); world.scale.setScalar(.001);
+      xrRoot.position.set(0, .75, -.6); if (grid) grid.visible = false; if (mode === 'immersive-ar') scene.background = null;
+      for (let i = 0; i < 2; i++) { const c = renderer.xr.getController(i); c.addEventListener('select', placeInFront); scene.add(c); }
+      s.addEventListener('end', () => { xrSession = null; renderer.xr.enabled = false; $('xr').textContent = 'View at real size'; xrRoot.remove(world); scene.remove(xrRoot); scene.add(world); world.scale.setScalar(1); if (grid) grid.visible = true; resize(); setView('iso'); });
+    } catch (e) { toast('Could not start real size: ' + e.message); }
+  });
+  function placeInFront() { // pinch: put the arm on the desk in front of you (desk height 75 cm)
+    const cam = renderer.xr.getCamera(camera), p = new THREE.Vector3(), d = new THREE.Vector3(); cam.getWorldPosition(p); cam.getWorldDirection(d); d.y = 0; d.normalize();
+    xrRoot.position.set(p.x + d.x * .55, .75, p.z + d.z * .55); xrRoot.rotation.y = Math.atan2(-d.x, -d.z) + Math.PI / 2;
+  }
+
+  let tt = null; function toast(m) { const t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(tt); tt = setTimeout(() => { t.hidden = true; }, 5000); }
+  renderer.setAnimationLoop(now => { if (anim) anim.step(now || performance.now()); if (!xrSession) controls.update(); renderer.render(scene, camera); });
+
+  applyTheme(); renderTree(); renderParams(); renderJoints(); rebuildGeometry(); resize(); setView('iso');
+})();
+</script>
+
+</body>
+</html>
